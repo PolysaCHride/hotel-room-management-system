@@ -1,0 +1,24 @@
+services:
+  backend:
+    build: ./backend
+    container_name: hotel-backend
+    restart: unless-stopped
+    environment:
+      - DATA_DIR=/data
+      - SECRET_KEY=${SECRET_KEY:-hotel-training-system-secret-key-change-me}
+    volumes:
+      # SQLite 数据持久化到宿主机 ./data/，容器重建数据不丢
+      - ./data:/data
+    # 仅内网可见：后端不向宿主机/公网发布端口，只能通过 frontend 反代访问
+    expose:
+      - "8000"
+
+  frontend:
+    build: ./frontend
+    container_name: hotel-frontend
+    restart: unless-stopped
+    ports:
+      # 对外唯一入口，默认 9527（避开常见端口），可在 .env 中修改
+      - "${WEB_PORT:-9527}:80"
+    depends_on:
+      - backend

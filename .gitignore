@@ -1,0 +1,32 @@
+# ===== Python（后端） =====
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+
+# ===== Node（前端） =====
+node_modules/
+dist/
+
+# ===== 构建产物与数据库（运行时生成） =====
+backend/data/
+*.db
+*.sqlite3
+
+# ===== 环境变量与密钥 =====
+.env
+*.local
+
+# ===== 测试与临时文件（与项目功能无关） =====
+docs/测试操作集.md
+backup/
+*.log
+*.tmp
+.DS_Store
+Thumbs.db
+
+# ===== IDE / 工具 =====
+.idea/
+.vscode/
+.zcode/
