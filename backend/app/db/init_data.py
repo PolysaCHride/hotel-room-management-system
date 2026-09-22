@@ -115,25 +115,44 @@ def init_database(db: Session):
     rooms[-1].note = "空调检修中"
 
     # 预订：guest 今天到店（演示前台办理入住）、未来预订、在住关联预订、历史完成预订
+    # 预订即分房：每条预订创建时锁定具体房间；已到入住日的房间标记为被预订
+    def free_room_of(type_id: int, ci: str, co: str, exclude_room_ids=()):
+        """按房间冲突检测挑选一间可分配的房间。"""
+        for room in [r for r in rooms if r.type_id == type_id and r.id not in exclude_room_ids
+                     and r.status in (config.ROOM_AVAILABLE, config.ROOM_BOOKED)]:
+            conflict = any(
+                b.room_id == room.id and b.status in (config.BOOKING_PENDING, config.BOOKING_CHECKED_IN)
+                and b.check_in_date < co and b.check_out_date > ci
+                for b in db.query(Booking).all()
+            )
+            if not conflict:
+                return room
+        return None
+
     std = types[1]
-    db.add(Booking(customer_id=main_guest.id, room_type_id=std.id,
+    guest_room = free_room_of(std.id, today.isoformat(), (today + timedelta(days=2)).isoformat())
+    if guest_room:
+        guest_room.status = config.ROOM_BOOKED  # 已到入住日：标记为被预订（演示功能5）
+    db.add(Booking(customer_id=main_guest.id, room_type_id=std.id, room_id=guest_room.id if guest_room else None,
                    check_in_date=today.isoformat(), check_out_date=(today + timedelta(days=2)).isoformat(),
                    guests=2, estimated_price=float(std.price) * 2,
                    remark="靠电梯近一点的房间", status=config.BOOKING_PENDING))
 
     lux = types[2]
-    db.add(Booking(customer_id=guest_users[3].id, room_type_id=lux.id,
+    lux_room = free_room_of(lux.id, (today + timedelta(days=1)).isoformat(), (today + timedelta(days=3)).isoformat())
+    db.add(Booking(customer_id=guest_users[3].id, room_type_id=lux.id, room_id=lux_room.id if lux_room else None,
                    check_in_date=(today + timedelta(days=1)).isoformat(),
                    check_out_date=(today + timedelta(days=3)).isoformat(),
                    guests=2, estimated_price=float(lux.price) * 2, status=config.BOOKING_PENDING))
 
     # 已入住的预订（关联在住记录）
     pending_records = db.query(CheckInRecord).filter(CheckInRecord.check_out_time.is_(None)).all()
+    checked_in_bookings = []
     for record in pending_records:
         rt = db.get(RoomType, record.room.type_id)
         nights = (datetime.fromisoformat(record.expected_check_out).date()
                   - record.check_in_time.date()).days or 1
-        booking = Booking(customer_id=record.customer_id, room_type_id=rt.id,
+        booking = Booking(customer_id=record.customer_id, room_type_id=rt.id, room_id=record.room.id,
                           check_in_date=record.check_in_time.date().isoformat(),
                           check_out_date=record.expected_check_out,
                           guests=1, estimated_price=float(rt.price) * nights,
@@ -141,12 +160,21 @@ def init_database(db: Session):
         db.add(booking)
         db.flush()
         record.booking_id = booking.id
+        checked_in_bookings.append(booking)
 
     # 一条已完成的历史预订
-    db.add(Booking(customer_id=main_guest.id, room_type_id=types[0].id,
+    done_room = free_room_of(types[0].id, (today - timedelta(days=10)).isoformat(), (today - timedelta(days=8)).isoformat())
+    db.add(Booking(customer_id=main_guest.id, room_type_id=types[0].id, room_id=done_room.id if done_room else None,
                    check_in_date=(today - timedelta(days=10)).isoformat(),
                    check_out_date=(today - timedelta(days=8)).isoformat(),
                    guests=1, estimated_price=float(types[0].price) * 2,
                    status=config.BOOKING_COMPLETED))
+
+    # 一条待确认的续订申请（演示功能2：顾客申请 → 服务员确认）
+    if checked_in_bookings:
+        sample = checked_in_bookings[0]
+        sample.requested_check_out = (datetime.fromisoformat(sample.check_out_date).date()
+                                      + timedelta(days=1)).isoformat()
+        sample.renewal_status = "pending"
 
     db.commit()

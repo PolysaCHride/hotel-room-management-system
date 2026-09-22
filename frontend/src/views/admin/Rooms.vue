@@ -55,7 +55,7 @@ import { onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import client from '../../api/client'
 
-const STATUS_LABEL = { available: '空闲', booked: '已订', occupied: '入住中', maintenance: '维修中' }
+const STATUS_LABEL = { available: '空闲', booked: '已被预订', occupied: '入住中', maintenance: '维修中' }
 const STATUS_TAG = { available: 'success', booked: 'warning', occupied: 'danger', maintenance: 'info' }
 
 const rooms = ref([])

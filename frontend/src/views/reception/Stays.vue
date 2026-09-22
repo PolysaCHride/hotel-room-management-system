@@ -12,8 +12,11 @@
         <el-table-column label="已住晚数" width="100">
           <template #default="{ row }">{{ nights(row) }} 晚</template>
         </el-table-column>
-        <el-table-column label="操作" width="130" fixed="right">
+        <el-table-column label="操作" width="200" fixed="right">
           <template #default="{ row }">
+            <el-button link type="primary" @click="openRenew(row)">
+              <el-icon><Calendar /></el-icon> 续订
+            </el-button>
             <el-button link type="danger" @click="checkout(row)">
               <el-icon><CircleCheck /></el-icon> 退房结算
             </el-button>
@@ -21,6 +24,26 @@
         </el-table-column>
       </el-table>
     </el-card>
+
+    <!-- 续订弹窗 -->
+    <el-dialog v-model="renew.visible" title="续订（延长离店日期）" width="420px">
+      <el-form label-width="110px">
+        <el-form-item label="房间 / 客人">
+          <span>{{ renew.room_number }} 房 · {{ renew.guest_name }}</span>
+        </el-form-item>
+        <el-form-item label="当前离店日期">
+          <span>{{ renew.old_date }}</span>
+        </el-form-item>
+        <el-form-item label="延长至">
+          <el-date-picker v-model="renew.new_date" type="date" value-format="YYYY-MM-DD"
+                          :disabled-date="disabledRenewDate" placeholder="新离店日期" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="renew.visible = false">取消</el-button>
+        <el-button type="primary" :loading="renew.loading" @click="submitRenew">确认续订</el-button>
+      </template>
+    </el-dialog>
 
     <!-- 结算结果 -->
     <el-dialog v-model="bill.visible" title="退房结算单" width="420px">
@@ -50,6 +73,8 @@ import client from '../../api/client'
 
 const stays = ref([])
 const bill = reactive({ visible: false, room_number: '', guest_name: '', days: 1, room_price: 0, amount: 0 })
+const renew = reactive({ visible: false, loading: false, id: null, booking_id: null, room_number: '',
+                         guest_name: '', old_date: '', new_date: '' })
 
 function nights(row) {
   const d = (Date.now() - new Date(row.check_in_time.replace(' ', 'T'))) / 86400000
@@ -58,6 +83,33 @@ function nights(row) {
 
 async function load() {
   stays.value = await client.get('/reception/stays')
+}
+
+function openRenew(row) {
+  Object.assign(renew, {
+    visible: true, loading: false, id: row.id, booking_id: row.booking_id,
+    room_number: row.room_number, guest_name: row.guest_name,
+    old_date: row.expected_check_out, new_date: '',
+  })
+}
+
+function disabledRenewDate(d) {
+  if (!renew.old_date) return true
+  return d.getTime() <= new Date(renew.old_date).getTime()
+}
+
+async function submitRenew() {
+  if (!renew.new_date) return ElMessage.warning('请选择新的离店日期')
+  if (!renew.booking_id) return ElMessage.warning('该入住记录没有关联预订，无法续订')
+  renew.loading = true
+  try {
+    await client.post(`/reception/renewals/${renew.booking_id}/direct`, { new_check_out_date: renew.new_date })
+    ElMessage.success(`续订成功，${renew.room_number} 房离店日期已延长至 ${renew.new_date}`)
+    renew.visible = false
+    load()
+  } finally {
+    renew.loading = false
+  }
 }
 
 function checkout(row) {

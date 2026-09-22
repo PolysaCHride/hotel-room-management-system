@@ -46,7 +46,7 @@ async function load() {
     { label: '总房数', value: s.total_rooms, color: '#409eff' },
     { label: '入住率 %', value: s.occupancy_rate, color: '#67c23a' },
     { label: '当前在住', value: s.occupied_rooms, color: '#e6a23c' },
-    { label: '今日到店', value: s.today_arrivals, color: '#f56c6c' },
+    { label: '今日待到店', value: s.today_arrivals, color: '#f56c6c' },
     { label: '今日营收(元)', value: s.revenue_today, color: '#f56c6c' },
     { label: '累计营收(元)', value: s.revenue_total, color: '#67c23a' },
   ]

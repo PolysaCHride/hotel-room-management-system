@@ -12,18 +12,26 @@ class BookingCreate(BaseModel):
     remark: str = ""
 
 
+class RenewalRequest(BaseModel):
+    new_check_out_date: str  # YYYY-MM-DD
+
+
 class BookingOut(BaseModel):
     id: int
     customer_id: int
     customer_name: str = ""
     room_type_id: int
     room_type_name: str = ""
+    room_id: Optional[int] = None
+    room_number: str = ""
     check_in_date: str
     check_out_date: str
     guests: int
     estimated_price: float
     status: str
     remark: str
+    requested_check_out: Optional[str] = None
+    renewal_status: str = "none"
     created_at: Optional[datetime] = None
 
     model_config = {"from_attributes": True}

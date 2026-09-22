@@ -68,7 +68,7 @@ import { onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import client from '../../api/client'
 
-const STATUS_LABEL = { available: '空闲', booked: '已订', occupied: '入住中', maintenance: '维修中' }
+const STATUS_LABEL = { available: '空闲', booked: '已被预订', occupied: '入住中', maintenance: '维修中' }
 const STATUS_TAG = { available: 'success', booked: 'warning', occupied: 'danger', maintenance: 'info' }
 
 const types = ref([])
@@ -98,14 +98,16 @@ async function submitBooking() {
   if (!dialog.dates || dialog.dates.length !== 2) return ElMessage.warning('请选择入住和离店日期')
   submitting.value = true
   try {
-    await client.post('/bookings', {
+    const res = await client.post('/bookings', {
       room_type_id: dialog.typeId,
       check_in_date: dialog.dates[0],
       check_out_date: dialog.dates[1],
       guests: dialog.guests,
       remark: dialog.remark,
     })
-    ElMessage.success('预订成功！请于入住日到前台办理入住')
+    ElMessage.success(
+      `预订成功！已为您锁定 ${res.room_number} 房，请于入住日到前台办理入住`
+    )
     dialog.visible = false
     load()
   } finally {

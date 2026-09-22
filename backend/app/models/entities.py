@@ -56,16 +56,20 @@ class Booking(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     customer_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     room_type_id: Mapped[int] = mapped_column(ForeignKey("room_types.id"))
+    room_id: Mapped[Optional[int]] = mapped_column(ForeignKey("rooms.id"), nullable=True)
     check_in_date: Mapped[str] = mapped_column(String(10))   # YYYY-MM-DD
     check_out_date: Mapped[str] = mapped_column(String(10))  # YYYY-MM-DD
     guests: Mapped[int] = mapped_column(Integer, default=1)
     estimated_price: Mapped[float] = mapped_column(Numeric(10, 2), default=0)
     status: Mapped[str] = mapped_column(String(20), default=config.BOOKING_PENDING)
     remark: Mapped[str] = mapped_column(String(200), default="")
+    requested_check_out: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)
+    renewal_status: Mapped[str] = mapped_column(String(20), default="none")  # none/pending/confirmed/rejected
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
 
     customer: Mapped["User"] = relationship(back_populates="bookings")
     room_type: Mapped["RoomType"] = relationship(back_populates="bookings")
+    room: Mapped["Room"] = relationship()
     checkin_record: Mapped["CheckInRecord"] = relationship(back_populates="booking", uselist=False)
 
 
