@@ -42,7 +42,10 @@ def do_check_in(db: Session, operator_id: int, data) -> CheckInRecord:
             raise HTTPException(404, "预订不存在")
         if booking.status != config.BOOKING_PENDING:
             raise HTTPException(409, "该预订不是待到店状态，无法办理入住")
-        if booking.check_out_date <= datetime.now().date().isoformat():
+        today_s = datetime.now().date().isoformat()
+        if booking.check_in_date > today_s:
+            raise HTTPException(400, f"预订未到入住日期（{booking.check_in_date}），无法提前办理入住")
+        if booking.check_out_date <= today_s:
             raise HTTPException(400, "预订已过期，无法办理入住")
 
     # 选房：指定房间或自动分配
