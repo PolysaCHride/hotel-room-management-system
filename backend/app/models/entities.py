@@ -65,6 +65,7 @@ class Booking(Base):
     remark: Mapped[str] = mapped_column(String(200), default="")
     requested_check_out: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)
     renewal_status: Mapped[str] = mapped_column(String(20), default="none")  # none/pending/confirmed/rejected
+    pay_status: Mapped[str] = mapped_column(String(20), default="unpaid")    # unpaid/paid
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
 
     customer: Mapped["User"] = relationship(back_populates="bookings")
@@ -102,6 +103,24 @@ class Bill(Base):
     room_price: Mapped[float] = mapped_column(Numeric(10, 2), default=0)
     amount: Mapped[float] = mapped_column(Numeric(10, 2), default=0)
     is_paid: Mapped[bool] = mapped_column(Boolean, default=False)
+    pay_via: Mapped[str] = mapped_column(String(20), default="")   # cash/online，空=待支付
+    pay_no: Mapped[Optional[str]] = mapped_column(String(40), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
 
     checkin_record: Mapped["CheckInRecord"] = relationship(back_populates="bills")
+
+
+class Payment(Base):
+    __tablename__ = "payments"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    pay_no: Mapped[str] = mapped_column(String(40), unique=True, index=True)
+    biz_type: Mapped[str] = mapped_column(String(20))   # booking/bill
+    biz_id: Mapped[int] = mapped_column(Integer, index=True)
+    customer_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True)
+    amount: Mapped[float] = mapped_column(Numeric(10, 2), default=0)
+    channel: Mapped[str] = mapped_column(String(20), default="")  # alipay/wechat
+    status: Mapped[str] = mapped_column(String(20), default="pending")  # pending/success/failed/cancelled/refunded
+    gateway_txn_no: Mapped[Optional[str]] = mapped_column(String(40), nullable=True)
+    paid_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)

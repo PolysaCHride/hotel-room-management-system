@@ -26,14 +26,21 @@
       </el-table-column>
       <el-table-column prop="guests" label="人数" width="70" />
       <el-table-column prop="estimated_price" label="预计费用(元)" width="120" />
+      <el-table-column label="支付状态" width="100">
+        <template #default="{ row }">
+          <el-tag v-if="row.pay_status === 'paid'" type="success" effect="plain">已支付</el-tag>
+          <el-tag v-else type="info" effect="plain">待支付</el-tag>
+        </template>
+      </el-table-column>
       <el-table-column label="状态" width="100">
         <template #default="{ row }">
           <el-tag :type="STATUS_TAG[row.status]" effect="plain">{{ STATUS_LABEL[row.status] }}</el-tag>
         </template>
       </el-table-column>
       <el-table-column prop="created_at" label="下单时间" width="150" />
-      <el-table-column label="操作" width="180" fixed="right">
+      <el-table-column label="操作" width="230" fixed="right">
         <template #default="{ row }">
+          <el-button v-if="canPay(row)" link type="success" @click="payOnline(row)">在线支付</el-button>
           <el-button v-if="canRenew(row)" link type="primary" @click="openRenew(row)">申请续订</el-button>
           <el-button v-if="row.status === 'pending'" link type="danger" @click="cancel(row)">取消预订</el-button>
         </template>
@@ -82,6 +89,16 @@ function canRenew(row) {
   return ['pending', 'checked_in'].includes(row.status) && row.renewal_status !== 'pending'
 }
 
+function canPay(row) {
+  return row.status === 'pending' && row.pay_status !== 'paid'
+}
+
+async function payOnline(row) {
+  const res = await client.post('/payments/create', { biz_type: 'booking', biz_id: row.id })
+  ElMessage.success('正在跳转模拟支付收银台…')
+  setTimeout(() => { window.location.href = res.cashier_url }, 600)
+}
+
 function openRenew(row) {
   Object.assign(renew, {
     visible: true, loading: false, id: row.id,
@@ -109,10 +126,16 @@ async function submitRenew() {
 }
 
 function cancel(row) {
-  ElMessageBox.confirm(`确定取消预订单 #${row.id}（${row.room_type_name}）吗？`, '取消预订', { type: 'warning' })
+  const refundNote = row.pay_status === 'paid'
+    ? '该预订已在线支付，取消后将自动原路退款。'
+    : ''
+  ElMessageBox.confirm(
+    `确定取消预订单 #${row.id}（${row.room_type_name}）吗？${refundNote}`,
+    '取消预订', { type: 'warning' }
+  )
     .then(async () => {
       await client.post(`/bookings/${row.id}/cancel`)
-      ElMessage.success('已取消')
+      ElMessage.success(row.pay_status === 'paid' ? '已取消，退款将原路退回' : '已取消')
       load()
     })
     .catch(() => {})

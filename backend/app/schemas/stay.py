@@ -45,6 +45,8 @@ class BillOut(BaseModel):
     room_price: float
     amount: float
     is_paid: bool
+    pay_via: str = ""
+    pay_no: Optional[str] = None
     created_at: Optional[datetime] = None
 
     model_config = {"from_attributes": True}

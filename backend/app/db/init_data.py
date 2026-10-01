@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.core import config
 from app.core.security import hash_password
-from app.models.entities import Bill, Booking, CheckInRecord, Room, RoomType, User
+from app.models.entities import Bill, Booking, CheckInRecord, Payment, Room, RoomType, User
 
 ROOM_TYPES = [
     ("单人间", 128, 1, "一张单人床，适合独自出行的客人，配备空调、免费WiFi、独立卫浴。"),
@@ -77,7 +77,7 @@ def init_database(db: Session):
     reception = db.scalar(select(User).where(User.username == "reception"))
     main_guest = db.scalar(select(User).where(User.username == "guest"))
 
-    # 历史账单（近 7 天，供统计图表展示）
+    # 历史账单（近 7 天，供统计图表展示）：现金/在线收款混合
     for i in range(7, 0, -1):
         check_out_day = today - timedelta(days=i)
         room = random.choice(rooms)
@@ -91,9 +91,19 @@ def init_database(db: Session):
         )
         db.add(record)
         db.flush()
-        db.add(Bill(checkin_id=record.id, room_number=room.room_number, days=days,
+        pay_via = "online" if i % 2 == 0 else "cash"
+        bill = Bill(checkin_id=record.id, room_number=room.room_number, days=days,
                     room_price=float(rt.price), amount=float(rt.price) * days, is_paid=True,
-                    created_at=checkin_time + timedelta(days=days)))
+                    pay_via=pay_via, created_at=checkin_time + timedelta(days=days))
+        db.add(bill)
+        db.flush()
+        if pay_via == "online":
+            pay_no = f"PAY{check_out_day.strftime('%Y%m%d')}00{i:02d}{random.randint(1000, 9999)}"
+            bill.pay_no = pay_no
+            db.add(Payment(pay_no=pay_no, biz_type="bill", biz_id=bill.id, amount=float(bill.amount),
+                           channel="alipay" if i % 4 == 0 else "wechat", status="success",
+                           paid_at=checkin_time + timedelta(days=days),
+                           created_at=checkin_time + timedelta(days=days)))
     db.flush()
 
     # 在住记录（3 间正在住的房）
@@ -143,7 +153,16 @@ def init_database(db: Session):
     db.add(Booking(customer_id=guest_users[3].id, room_type_id=lux.id, room_id=lux_room.id if lux_room else None,
                    check_in_date=(today + timedelta(days=1)).isoformat(),
                    check_out_date=(today + timedelta(days=3)).isoformat(),
-                   guests=2, estimated_price=float(lux.price) * 2, status=config.BOOKING_PENDING))
+                   guests=2, estimated_price=float(lux.price) * 2, status=config.BOOKING_PENDING,
+                   pay_status="paid"))
+    db.flush()
+    # 该预订已在线支付（支付宝），可演示"取消已支付预订 → 模拟退款"
+    lux_booking = db.query(Booking).filter(Booking.customer_id == guest_users[3].id).first()
+    if lux_booking:
+        db.add(Payment(pay_no=f"PAY{today.strftime('%Y%m%d')}BK{lux_booking.id:03d}",
+                       biz_type="booking", biz_id=lux_booking.id, customer_id=guest_users[3].id,
+                       amount=float(lux.price) * 2, channel="alipay", status="success",
+                       paid_at=datetime.combine(today, datetime.min.time()).replace(hour=9)))
 
     # 已入住的预订（关联在住记录）
     pending_records = db.query(CheckInRecord).filter(CheckInRecord.check_out_time.is_(None)).all()
@@ -162,13 +181,13 @@ def init_database(db: Session):
         record.booking_id = booking.id
         checked_in_bookings.append(booking)
 
-    # 一条已完成的历史预订
+    # 一条已完成的历史预订（当时在线支付）
     done_room = free_room_of(types[0].id, (today - timedelta(days=10)).isoformat(), (today - timedelta(days=8)).isoformat())
     db.add(Booking(customer_id=main_guest.id, room_type_id=types[0].id, room_id=done_room.id if done_room else None,
                    check_in_date=(today - timedelta(days=10)).isoformat(),
                    check_out_date=(today - timedelta(days=8)).isoformat(),
                    guests=1, estimated_price=float(types[0].price) * 2,
-                   status=config.BOOKING_COMPLETED))
+                   status=config.BOOKING_COMPLETED, pay_status="paid"))
 
     # 一条待确认的续订申请（演示功能2：顾客申请 → 服务员确认）
     if checked_in_bookings:

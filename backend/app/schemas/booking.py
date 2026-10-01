@@ -32,6 +32,7 @@ class BookingOut(BaseModel):
     remark: str
     requested_check_out: Optional[str] = None
     renewal_status: str = "none"
+    pay_status: str = "unpaid"
     created_at: Optional[datetime] = None
 
     model_config = {"from_attributes": True}

@@ -129,7 +129,7 @@ def do_check_out(db: Session, record_id: int) -> Bill:
         days=days,
         room_price=price,
         amount=amount,
-        is_paid=True,
+        is_paid=False,  # 退房生成待支付账单，由前台收款（现金/在线）
     )
     record.check_out_time = now
     if room:

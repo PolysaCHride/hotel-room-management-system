@@ -1,9 +1,10 @@
 from datetime import datetime
 from typing import Optional
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
+from typing import Optional
 
 from app.schemas.booking import RenewalRequest
 
@@ -147,6 +148,20 @@ def check_out(record_id: int, db: Session = Depends(get_db)):
 def bills(db: Session = Depends(get_db)):
     bills = db.query(Bill).order_by(Bill.created_at.desc()).limit(100).all()
     return [_bill_out(db, b) for b in bills]
+
+
+@router.post("/bills/{bill_id}/cash-pay", response_model=BillOut, summary="现金收款（账单立即标记已支付）")
+def cash_pay(bill_id: int, db: Session = Depends(get_db)):
+    bill = db.get(Bill, bill_id)
+    if not bill:
+        raise HTTPException(404, "账单不存在")
+    if bill.is_paid:
+        raise HTTPException(409, "该账单已支付")
+    bill.is_paid = True
+    bill.pay_via = "cash"
+    db.commit()
+    db.refresh(bill)
+    return _bill_out(db, bill)
 
 
 def _record_out(record: CheckInRecord) -> CheckInOut:

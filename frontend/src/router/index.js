@@ -12,6 +12,7 @@ const routes = [
     children: [
       { path: '', component: () => import('../views/customer/Home.vue') },
       { path: 'bookings', component: () => import('../views/customer/MyBookings.vue') },
+      { path: 'pay-result', component: () => import('../views/customer/PayResult.vue') },
     ],
   },
   // 服务员界面

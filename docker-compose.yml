@@ -6,10 +6,27 @@ services:
     environment:
       - DATA_DIR=/data
       - SECRET_KEY=${SECRET_KEY:-hotel-training-system-secret-key-change-me}
+      - GATEWAY_BASE_URL=http://gateway:8000
+      - PAY_SECRET=${PAY_SECRET:-demo-pay-secret-change-me}
+      - NOTIFY_BASE_URL=http://backend:8000
     volumes:
       # SQLite 数据持久化到宿主机 ./data/，容器重建数据不丢
       - ./data:/data
     # 仅内网可见：后端不向宿主机/公网发布端口，只能通过 frontend 反代访问
+    expose:
+      - "8000"
+
+  gateway:
+    build: ./mock-gateway
+    container_name: hotel-gateway
+    restart: unless-stopped
+    environment:
+      - DATA_DIR=/data
+      - PAY_SECRET=${PAY_SECRET:-demo-pay-secret-change-me}
+      - PUBLIC_PREFIX=/gateway
+    volumes:
+      # 网关自己的支付交易库（gateway.db）
+      - ./data:/data
     expose:
       - "8000"
 
@@ -22,3 +39,4 @@ services:
       - "${WEB_PORT:-9527}:80"
     depends_on:
       - backend
+      - gateway

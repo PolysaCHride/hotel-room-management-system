@@ -30,3 +30,11 @@ BOOKING_PENDING = "pending"        # 待到店
 BOOKING_CHECKED_IN = "checked_in"  # 已入住
 BOOKING_CANCELLED = "cancelled"    # 已取消
 BOOKING_COMPLETED = "completed"    # 已完成（退房结算）
+
+# 支付网关（模拟）
+GATEWAY_BASE_URL = os.getenv("GATEWAY_BASE_URL", "http://127.0.0.1:18001")
+GATEWAY_PUBLIC_PREFIX = os.getenv("GATEWAY_PUBLIC_PREFIX", "/gateway")  # 浏览器访问收银台的路径前缀
+PAY_MERCHANT_ID = os.getenv("PAY_MERCHANT_ID", "hotel")
+PAY_SECRET = os.getenv("PAY_SECRET", "demo-pay-secret-change-me")
+# 网关服务器间回调本服务的地址（容器内为 http://backend:8000）
+NOTIFY_BASE_URL = os.getenv("NOTIFY_BASE_URL", "http://127.0.0.1:18000")

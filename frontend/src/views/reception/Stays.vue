@@ -46,7 +46,7 @@
     </el-dialog>
 
     <!-- 结算结果 -->
-    <el-dialog v-model="bill.visible" title="退房结算单" width="420px">
+    <el-dialog v-model="bill.visible" title="退房结算单" width="440px" :close-on-click-modal="false">
       <el-descriptions :column="1" border>
         <el-descriptions-item label="房号">{{ bill.room_number }}</el-descriptions-item>
         <el-descriptions-item label="客人">{{ bill.guest_name }}</el-descriptions-item>
@@ -56,25 +56,39 @@
           <span class="amount">¥{{ bill.amount }}</span>
         </el-descriptions-item>
         <el-descriptions-item label="支付状态">
-          <el-tag type="success">已支付</el-tag>
+          <el-tag v-if="bill.is_paid" type="success">已支付（{{ bill.pay_via === 'online' ? '在线' : '现金' }}）</el-tag>
+          <el-tag v-else type="warning">待支付</el-tag>
         </el-descriptions-item>
       </el-descriptions>
+      <el-alert v-if="payingOnline" type="info" :closable="false" style="margin-top: 10px"
+                title="已打开模拟收银台，等待客人支付…确认后本页面自动更新（也可在收银台操作 付款失败/取消支付 观察对应结果）" />
       <template #footer>
-        <el-button type="primary" @click="bill.visible = false">完成</el-button>
+        <template v-if="!bill.is_paid">
+          <el-button type="success" :disabled="payingOnline" @click="cashPay">
+            <el-icon><Money /></el-icon> 现金收款
+          </el-button>
+          <el-button type="primary" :loading="payingOnline" @click="onlinePay">
+            <el-icon><Iphone /></el-icon> 在线收款
+          </el-button>
+        </template>
+        <el-button @click="bill.visible = false">{{ bill.is_paid ? '完成' : '稍后收款' }}</el-button>
       </template>
     </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { onMounted, reactive, ref } from 'vue'
+import { onMounted, onUnmounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import client from '../../api/client'
 
 const stays = ref([])
-const bill = reactive({ visible: false, room_number: '', guest_name: '', days: 1, room_price: 0, amount: 0 })
+const bill = reactive({ visible: false, id: null, room_number: '', guest_name: '', days: 1, room_price: 0,
+                         amount: 0, is_paid: false, pay_via: '' })
 const renew = reactive({ visible: false, loading: false, id: null, booking_id: null, room_number: '',
                          guest_name: '', old_date: '', new_date: '' })
+const payingOnline = ref(false)
+let payTimer = null
 
 function nights(row) {
   const d = (Date.now() - new Date(row.check_in_time.replace(' ', 'T'))) / 86400000
@@ -118,14 +132,54 @@ function checkout(row) {
     '退房结算', { type: 'warning' }
   ).then(async () => {
     const b = await client.post(`/reception/check-out/${row.id}`)
-    Object.assign(bill, { visible: true, room_number: b.room_number, guest_name: b.guest_name,
-                          days: b.days, room_price: b.room_price, amount: b.amount })
-    ElMessage.success('退房完成，账单已生成')
+    Object.assign(bill, { visible: true, id: b.id, room_number: b.room_number, guest_name: b.guest_name,
+                          days: b.days, room_price: b.room_price, amount: b.amount,
+                          is_paid: b.is_paid, pay_via: b.pay_via || '' })
+    ElMessage.success('退房完成，账单已生成，请选择收款方式')
     load()
   }).catch(() => {})
 }
 
+async function cashPay() {
+  const b = await client.post(`/reception/bills/${bill.id}/cash-pay`)
+  bill.is_paid = b.is_paid
+  bill.pay_via = b.pay_via
+  ElMessage.success('现金收款完成')
+}
+
+async function onlinePay() {
+  payingOnline.value = true
+  try {
+    const res = await client.post('/payments/create', { biz_type: 'bill', biz_id: bill.id })
+    window.open(res.cashier_url, '_blank')
+    ElMessage.success('收银台已在新窗口打开，等待客人支付…')
+    let tries = 0
+    payTimer = setInterval(async () => {
+      tries += 1
+      const st = await client.get(`/payments/${res.pay_no}`)
+      if (st.status !== 'pending') {
+        clearInterval(payTimer)
+        payingOnline.value = false
+        if (st.status === 'success') {
+          bill.is_paid = true
+          bill.pay_via = 'online'
+          ElMessage.success('在线收款成功！')
+        } else {
+          ElMessage.warning(st.status === 'cancelled' ? '客人已取消支付' : '支付失败，可重新发起')
+        }
+      } else if (tries >= 60) {
+        clearInterval(payTimer)
+        payingOnline.value = false
+        ElMessage.warning('等待支付超时，可稍后在账单记录中继续收款')
+      }
+    }, 2000)
+  } catch (e) {
+    payingOnline.value = false
+  }
+}
+
 onMounted(load)
+onUnmounted(() => { if (payTimer) clearInterval(payTimer) })
 </script>
 
 <style scoped>

@@ -128,6 +128,13 @@ def cancel_booking(db: Session, customer_id: Optional[int], booking_id: int, is_
         raise HTTPException(403, "无权操作该预订")
     if booking.status != config.BOOKING_PENDING:
         raise HTTPException(409, "仅待到店的预订可以取消")
+    # 已在线支付的预订：先走模拟退款再取消
+    from app.services.payment_service import get_paid_booking_payment, refund_payment
+
+    paid_payment = get_paid_booking_payment(db, booking_id)
+    if paid_payment:
+        refund_payment(db, paid_payment)
+        booking.pay_status = "unpaid"
     booking.status = config.BOOKING_CANCELLED
     booking.renewal_status = "none"
     booking.requested_check_out = None

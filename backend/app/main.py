@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import admin, auth, bookings, reception, rooms
+from app.api import admin, auth, bookings, payments, reception, rooms
 from app.core.config import DATA_DIR
 from app.db.database import Base, SessionLocal, engine
 from app.db.init_data import init_database
@@ -40,6 +40,7 @@ app.include_router(rooms.router, prefix="/api")
 app.include_router(bookings.router, prefix="/api")
 app.include_router(reception.router, prefix="/api")
 app.include_router(admin.router, prefix="/api")
+app.include_router(payments.router, prefix="/api")
 
 
 @app.get("/api/health", tags=["系统"])

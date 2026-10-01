@@ -11,6 +11,8 @@ dist/
 
 # ===== 构建产物与数据库（运行时生成） =====
 backend/data/
+mock-gateway/data/
+data/
 *.db
 *.sqlite3
 
