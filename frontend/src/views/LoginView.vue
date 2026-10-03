@@ -120,8 +120,11 @@ async function doRegister() {
   background: linear-gradient(135deg, #1f2d3d 0%, #2b4a6f 100%);
 }
 .login-card {
-  width: 400px; background: #fff; border-radius: 12px; padding: 32px;
+  width: min(400px, 92vw); background: #fff; border-radius: 12px; padding: 32px;
   box-shadow: 0 12px 40px rgba(0,0,0,.3);
+}
+@media (max-width: 768px) {
+  .login-card { padding: 22px 18px; }
 }
 .brand { text-align: center; margin-bottom: 20px; }
 .brand h1 { font-size: 20px; color: #303133; margin: 10px 0 4px; }

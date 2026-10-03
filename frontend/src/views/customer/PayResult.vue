@@ -104,7 +104,7 @@ onUnmounted(stop)
   display: flex; align-items: center; justify-content: center;
   min-height: calc(100vh - 120px);
 }
-.result-card { width: 460px; text-align: center; padding: 12px 8px; }
+.result-card { width: min(460px, 92vw); text-align: center; padding: 12px 8px; }
 .icon-wrap { margin: 10px 0 6px; }
 .spin { animation: spin 1.2s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }

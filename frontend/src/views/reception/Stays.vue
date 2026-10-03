@@ -3,16 +3,16 @@
     <el-card shadow="never" class="page-card">
       <template #header><b>当前在住（点击办理退房结算）</b></template>
       <el-table :data="stays" stripe>
-        <el-table-column prop="room_number" label="房号" width="90" />
-        <el-table-column prop="room_type_name" label="房型" width="130" />
-        <el-table-column prop="guest_name" label="客人" width="110" />
-        <el-table-column prop="guest_phone" label="手机号" width="130" />
-        <el-table-column prop="check_in_time" label="入住时间" width="150" />
-        <el-table-column prop="expected_check_out" label="预计离店" width="120" />
-        <el-table-column label="已住晚数" width="100">
+        <el-table-column prop="room_number" label="房号" width="70" />
+        <el-table-column prop="room_type_name" label="房型" width="100" />
+        <el-table-column prop="guest_name" label="客人" width="90" />
+        <el-table-column v-if="!isMobile" prop="guest_phone" label="手机号" width="120" />
+        <el-table-column v-if="!isMobile" prop="check_in_time" label="入住时间" width="150" />
+        <el-table-column prop="expected_check_out" label="预计离店" width="110" />
+        <el-table-column label="已住晚数" width="90">
           <template #default="{ row }">{{ nights(row) }} 晚</template>
         </el-table-column>
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column label="操作" width="190" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" @click="openRenew(row)">
               <el-icon><Calendar /></el-icon> 续订
@@ -81,6 +81,9 @@
 import { onMounted, onUnmounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import client from '../../api/client'
+import { useResponsive } from '../../composables/useResponsive'
+
+const { isMobile } = useResponsive()
 
 const stays = ref([])
 const bill = reactive({ visible: false, id: null, room_number: '', guest_name: '', days: 1, room_price: 0,

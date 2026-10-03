@@ -2,27 +2,27 @@
   <el-card shadow="never">
     <template #header><b>账单记录（最近 100 条）</b></template>
     <el-table :data="bills" stripe>
-      <el-table-column prop="id" label="账单号" width="80" />
-      <el-table-column prop="room_number" label="房号" width="90" />
-      <el-table-column prop="guest_name" label="客人" width="110" />
-      <el-table-column prop="days" label="晚数" width="70" />
-      <el-table-column prop="room_price" label="单价(元)" width="100" />
-      <el-table-column prop="amount" label="金额(元)" width="110">
+      <el-table-column prop="id" label="账单号" width="75" />
+      <el-table-column prop="room_number" label="房号" width="75" />
+      <el-table-column prop="guest_name" label="客人" width="90" />
+      <el-table-column prop="days" label="晚数" width="65" />
+      <el-table-column v-if="!isMobile" prop="room_price" label="单价(元)" width="95" />
+      <el-table-column prop="amount" label="金额(元)" width="105">
         <template #default="{ row }"><b>¥{{ row.amount }}</b></template>
       </el-table-column>
-      <el-table-column label="支付状态" width="100">
+      <el-table-column label="支付状态" width="95">
         <template #default="{ row }">
           <el-tag :type="row.is_paid ? 'success' : 'warning'">{{ row.is_paid ? '已支付' : '待支付' }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="支付方式" width="100">
+      <el-table-column label="支付方式" width="95">
         <template #default="{ row }">
           <span v-if="row.is_paid">{{ row.pay_via === 'online' ? '在线支付' : '现金' }}</span>
           <span v-else class="muted">—</span>
         </template>
       </el-table-column>
-      <el-table-column prop="created_at" label="结算时间" width="150" />
-      <el-table-column label="操作" width="180" fixed="right">
+      <el-table-column v-if="!isMobile" prop="created_at" label="结算时间" width="150" />
+      <el-table-column label="操作" width="175" fixed="right">
         <template #default="{ row }">
           <template v-if="!row.is_paid">
             <el-button link type="success" @click="cashPay(row)">现金收款</el-button>
@@ -39,6 +39,9 @@
 import { onMounted, onUnmounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import client from '../../api/client'
+import { useResponsive } from '../../composables/useResponsive'
+
+const { isMobile } = useResponsive()
 
 const bills = ref([])
 let payTimer = null

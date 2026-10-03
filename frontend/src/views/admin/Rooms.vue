@@ -13,17 +13,17 @@
       </div>
     </template>
     <el-table :data="rooms" stripe>
-      <el-table-column prop="room_number" label="房号" width="100" />
-      <el-table-column prop="type_name" label="房型" width="140" />
-      <el-table-column prop="price" label="价格(元/晚)" width="120" />
-      <el-table-column prop="floor" label="楼层" width="80" />
-      <el-table-column label="状态" width="120">
+      <el-table-column prop="room_number" label="房号" width="85" />
+      <el-table-column prop="type_name" label="房型" width="110" />
+      <el-table-column v-if="!isMobile" prop="price" label="价格(元/晚)" width="110" />
+      <el-table-column v-if="!isMobile" prop="floor" label="楼层" width="75" />
+      <el-table-column label="状态" width="100">
         <template #default="{ row }">
           <el-tag :type="STATUS_TAG[row.status]" effect="plain">{{ STATUS_LABEL[row.status] }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="note" label="备注" min-width="120" />
-      <el-table-column label="操作" width="220" fixed="right">
+      <el-table-column v-if="!isMobile" prop="note" label="备注" min-width="120" />
+      <el-table-column label="操作" width="210" fixed="right">
         <template #default="{ row }">
           <el-button v-if="row.status === 'available'" link type="warning" @click="setStatus(row, 'maintenance', '维修中')">设为维修</el-button>
           <el-button v-if="row.status === 'maintenance'" link type="success" @click="setStatus(row, 'available', '')">恢复可用</el-button>
@@ -54,6 +54,9 @@
 import { onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import client from '../../api/client'
+import { useResponsive } from '../../composables/useResponsive'
+
+const { isMobile } = useResponsive()
 
 const STATUS_LABEL = { available: '空闲', booked: '已被预订', occupied: '入住中', maintenance: '维修中' }
 const STATUS_TAG = { available: 'success', booked: 'warning', occupied: 'danger', maintenance: 'info' }

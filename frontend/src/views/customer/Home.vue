@@ -1,7 +1,7 @@
 <template>
   <div>
     <el-row :gutter="16">
-      <el-col :span="8" v-for="t in types" :key="t.id">
+      <el-col :xs="24" :sm="12" :md="8" v-for="t in types" :key="t.id">
         <el-card shadow="hover" class="type-card">
           <div class="type-head">
             <span class="type-name">{{ t.name }}</span>
@@ -26,16 +26,16 @@
     <el-card shadow="never" class="page-card" style="margin-top: 16px">
       <template #header><b>房间实时状态</b></template>
       <el-table :data="rooms" size="default" stripe>
-        <el-table-column prop="room_number" label="房号" width="100" />
-        <el-table-column prop="type_name" label="房型" width="140" />
-        <el-table-column prop="price" label="价格(元/晚)" width="120" />
-        <el-table-column prop="floor" label="楼层" width="80" />
-        <el-table-column label="状态" width="120">
+        <el-table-column prop="room_number" label="房号" width="80" />
+        <el-table-column prop="type_name" label="房型" min-width="110" />
+        <el-table-column v-if="!isMobile" prop="price" label="价格(元/晚)" width="110" />
+        <el-table-column v-if="!isMobile" prop="floor" label="楼层" width="70" />
+        <el-table-column label="状态" width="100">
           <template #default="{ row }">
             <el-tag :type="STATUS_TAG[row.status]" effect="plain">{{ STATUS_LABEL[row.status] }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="note" label="备注" />
+        <el-table-column v-if="!isMobile" prop="note" label="备注" />
       </el-table>
     </el-card>
 
@@ -67,6 +67,9 @@
 import { onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import client from '../../api/client'
+import { useResponsive } from '../../composables/useResponsive'
+
+const { isMobile } = useResponsive()
 
 const STATUS_LABEL = { available: '空闲', booked: '已被预订', occupied: '入住中', maintenance: '维修中' }
 const STATUS_TAG = { available: 'success', booked: 'warning', occupied: 'danger', maintenance: 'info' }

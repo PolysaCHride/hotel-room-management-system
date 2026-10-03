@@ -14,21 +14,21 @@
         <el-radio-button value="customer">顾客</el-radio-button>
       </el-radio-group>
       <el-table :data="users" stripe>
-        <el-table-column prop="id" label="ID" width="70" />
-        <el-table-column prop="username" label="用户名" width="130" />
-        <el-table-column prop="real_name" label="姓名" width="150" />
-        <el-table-column prop="phone" label="手机号" width="140" />
-        <el-table-column label="角色" width="110">
+        <el-table-column v-if="!isMobile" prop="id" label="ID" width="65" />
+        <el-table-column prop="username" label="用户名" width="115" />
+        <el-table-column prop="real_name" label="姓名" width="130" />
+        <el-table-column v-if="!isMobile" prop="phone" label="手机号" width="130" />
+        <el-table-column label="角色" width="95">
           <template #default="{ row }">
             <el-tag :type="ROLE_TAG[row.role]" effect="plain">{{ ROLE_LABEL[row.role] }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="状态" width="100">
+        <el-table-column label="状态" width="90">
           <template #default="{ row }">
             <el-tag :type="row.is_active ? 'success' : 'info'">{{ row.is_active ? '正常' : '已禁用' }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="130" fixed="right">
+        <el-table-column label="操作" width="110" fixed="right">
           <template #default="{ row }">
             <el-button v-if="row.is_active" link type="danger" @click="toggle(row, false)">禁用</el-button>
             <el-button v-else link type="success" @click="toggle(row, true)">启用</el-button>
@@ -56,6 +56,9 @@
 import { onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import client from '../../api/client'
+import { useResponsive } from '../../composables/useResponsive'
+
+const { isMobile } = useResponsive()
 
 const ROLE_LABEL = { admin: '管理员', receptionist: '服务员', customer: '顾客' }
 const ROLE_TAG = { admin: 'danger', receptionist: 'warning', customer: 'success' }

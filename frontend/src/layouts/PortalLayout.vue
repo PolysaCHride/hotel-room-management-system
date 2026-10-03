@@ -1,6 +1,7 @@
 <template>
   <el-container class="layout">
-    <el-aside width="220px" class="aside">
+    <!-- 桌面端侧边栏 -->
+    <el-aside v-if="!isMobile" width="220px" class="aside">
       <div class="logo">
         <el-icon :size="26"><OfficeBuilding /></el-icon>
         <span>宾馆客房管理系统</span>
@@ -14,9 +15,32 @@
       </el-menu>
     </el-aside>
 
+    <!-- 手机端抽屉导航 -->
+    <el-drawer v-model="drawerOpen" direction="ltr" size="240px"
+               :show-close="false" :with-header="false" class="mobile-drawer">
+      <div class="aside drawer-inner">
+        <div class="logo">
+          <el-icon :size="22"><OfficeBuilding /></el-icon>
+          <span>宾馆客房管理</span>
+        </div>
+        <el-menu :default-active="$route.path" router background-color="#1f2d3d" text-color="#cfd8e3"
+                 active-text-color="#409eff" class="menu" @select="drawerOpen = false">
+          <el-menu-item v-for="m in menus" :key="m.path" :index="m.path">
+            <el-icon><component :is="m.icon" /></el-icon>
+            <span>{{ m.title }}</span>
+          </el-menu-item>
+        </el-menu>
+      </div>
+    </el-drawer>
+
     <el-container>
       <el-header class="header">
-        <span class="portal-title">{{ portalTitle }}</span>
+        <div class="header-left">
+          <el-button v-if="isMobile" text class="burger" @click="drawerOpen = true">
+            <el-icon :size="22"><Menu /></el-icon>
+          </el-button>
+          <span class="portal-title">{{ portalTitle }}</span>
+        </div>
         <div class="user-box">
           <el-tag :type="tagType" effect="dark" size="small">{{ auth.roleLabel }}</el-tag>
           <span class="uname">{{ auth.user?.real_name || auth.user?.username }}</span>
@@ -33,13 +57,17 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessageBox } from 'element-plus'
 import { useAuthStore } from '../stores/auth'
+import { useResponsive } from '../composables/useResponsive'
 
 const auth = useAuthStore()
 const router = useRouter()
+const { isMobile } = useResponsive()
+
+const drawerOpen = ref(false)
 
 const MENU_BY_ROLE = {
   customer: [
@@ -76,18 +104,35 @@ function onLogout() {
 
 <style scoped>
 .layout { height: 100%; }
-.aside { background: #1f2d3d; }
+.aside { background: #1f2d3d; height: 100%; }
 .logo {
   height: 60px; display: flex; align-items: center; justify-content: center; gap: 8px;
   color: #fff; font-weight: 600; font-size: 15px; border-bottom: 1px solid rgba(255,255,255,.08);
 }
 .menu { border-right: none; }
+.drawer-inner { display: flex; flex-direction: column; }
 .header {
   display: flex; align-items: center; justify-content: space-between;
   background: #fff; border-bottom: 1px solid #e6e6e6;
+  padding: 0 16px;
 }
-.portal-title { font-size: 16px; font-weight: 600; color: #303133; }
+.header-left { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.portal-title { font-size: 16px; font-weight: 600; color: #303133; white-space: nowrap; }
 .user-box { display: flex; align-items: center; gap: 12px; }
 .uname { color: #606266; font-size: 14px; }
 .main { background: #f5f7fa; padding: 16px; }
+
+/* ===== 移动端 ===== */
+@media (max-width: 768px) {
+  .header { padding: 0 10px; }
+  .portal-title { font-size: 14px; }
+  .user-box { gap: 6px; }
+  .uname { display: none; }  /* 竖屏隐藏姓名，防止顶栏溢出 */
+  .main { padding: 10px; }
+}
+</style>
+
+<style>
+/* 抽屉内边距清零（非 scoped，作用于 el-drawer 渲染体） */
+.mobile-drawer .el-drawer__body { padding: 0; background: #1f2d3d; }
 </style>

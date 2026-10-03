@@ -2,7 +2,7 @@
   <div>
     <!-- 统计条 -->
     <el-row :gutter="16" class="page-card">
-      <el-col :span="6" v-for="c in cards" :key="c.label">
+      <el-col :xs="12" :sm="6" v-for="c in cards" :key="c.label" style="margin-bottom: 12px">
         <el-card shadow="hover">
           <div class="stat"><span class="num">{{ c.value }}</span><span class="label">{{ c.label }}</span></div>
         </el-card>
@@ -13,24 +13,24 @@
     <el-card v-if="renewals.length" shadow="never" class="page-card">
       <template #header><b>续订确认（{{ renewals.length }} 条待处理）</b></template>
       <el-table :data="renewals" stripe>
-        <el-table-column prop="id" label="单号" width="70" />
-        <el-table-column prop="customer_name" label="客人" width="110" />
-        <el-table-column prop="room_number" label="房间" width="90" />
-        <el-table-column prop="room_type_name" label="房型" width="130" />
-        <el-table-column label="当前离店" width="120" prop="check_out_date" />
-        <el-table-column label="申请延长至" width="130">
+        <el-table-column prop="id" label="单号" width="60" />
+        <el-table-column prop="customer_name" label="客人" width="90" />
+        <el-table-column prop="room_number" label="房间" width="80" />
+        <el-table-column v-if="!isMobile" prop="room_type_name" label="房型" width="110" />
+        <el-table-column label="当前离店" width="110" prop="check_out_date" />
+        <el-table-column label="申请延长至" width="120">
           <template #default="{ row }">
             <b class="highlight">{{ row.requested_check_out }}</b>
           </template>
         </el-table-column>
-        <el-table-column label="状态" width="100">
+        <el-table-column v-if="!isMobile" label="状态" width="90">
           <template #default="{ row }">
             <el-tag :type="row.status === 'checked_in' ? 'success' : 'warning'" effect="plain">
               {{ row.status === 'checked_in' ? '在住' : '待到店' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="160" fixed="right">
+        <el-table-column label="操作" width="150" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" @click="confirmRenewal(row)">确认续订</el-button>
             <el-button link type="danger" @click="rejectRenewal(row)">拒绝</el-button>
@@ -110,23 +110,23 @@
         </div>
       </template>
       <el-table :data="arrivals" stripe>
-        <el-table-column prop="id" label="单号" width="70" />
-        <el-table-column prop="customer_name" label="客人" width="110" />
-        <el-table-column prop="customer_phone" label="手机号" width="130" />
-        <el-table-column prop="room_type_name" label="房型" width="120" />
-        <el-table-column prop="room_number" label="锁定房间" width="100">
+        <el-table-column prop="id" label="单号" width="60" />
+        <el-table-column prop="customer_name" label="客人" width="90" />
+        <el-table-column v-if="!isMobile" prop="customer_phone" label="手机号" width="120" />
+        <el-table-column prop="room_type_name" label="房型" min-width="100" />
+        <el-table-column prop="room_number" label="锁定房间" width="95">
           <template #default="{ row }">
             <el-tag v-if="row.room_number" type="warning" effect="plain">{{ row.room_number }} 房</el-tag>
             <span v-else class="muted">未分配</span>
           </template>
         </el-table-column>
-        <el-table-column label="入住 — 离店" width="190">
+        <el-table-column label="入住 — 离店" width="180">
           <template #default="{ row }">{{ row.check_in_date }} ~ {{ row.check_out_date }}</template>
         </el-table-column>
-        <el-table-column prop="guests" label="人数" width="70" />
-        <el-table-column prop="estimated_price" label="预计(元)" width="100" />
-        <el-table-column prop="remark" label="备注" min-width="100" />
-        <el-table-column label="操作" width="120" fixed="right">
+        <el-table-column v-if="!isMobile" prop="guests" label="人数" width="65" />
+        <el-table-column v-if="!isMobile" prop="estimated_price" label="预计(元)" width="90" />
+        <el-table-column v-if="!isMobile" prop="remark" label="备注" min-width="100" />
+        <el-table-column label="操作" width="110" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" @click="pickBooking(row)">办理入住</el-button>
           </template>
@@ -140,6 +140,9 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import client from '../../api/client'
+import { useResponsive } from '../../composables/useResponsive'
+
+const { isMobile } = useResponsive()
 
 const cards = ref([
   { label: '今日待到店', value: 0 },

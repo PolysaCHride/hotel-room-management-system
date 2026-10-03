@@ -7,17 +7,17 @@
       </div>
     </template>
     <el-table :data="types" stripe>
-      <el-table-column prop="name" label="房型" width="150" />
+      <el-table-column prop="name" label="房型" width="120" />
       <el-table-column label="价格(元/晚)" width="150">
         <template #default="{ row }">
           <el-input-number v-model="row.price" :min="0" size="small" @change="savePrice(row)" />
         </template>
       </el-table-column>
-      <el-table-column prop="capacity" label="可住人数" width="100" />
-      <el-table-column prop="room_count" label="房间数" width="90" />
-      <el-table-column prop="free_count" label="今日空闲" width="100" />
-      <el-table-column prop="description" label="描述" min-width="180" />
-      <el-table-column label="操作" width="110" fixed="right">
+      <el-table-column v-if="!isMobile" prop="capacity" label="可住人数" width="90" />
+      <el-table-column v-if="!isMobile" prop="room_count" label="房间数" width="85" />
+      <el-table-column v-if="!isMobile" prop="free_count" label="今日空闲" width="95" />
+      <el-table-column v-if="!isMobile" prop="description" label="描述" min-width="180" />
+      <el-table-column label="操作" width="100" fixed="right">
         <template #default="{ row }">
           <el-button link type="danger" @click="remove(row)">删除</el-button>
         </template>
@@ -43,6 +43,9 @@
 import { onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import client from '../../api/client'
+import { useResponsive } from '../../composables/useResponsive'
+
+const { isMobile } = useResponsive()
 
 const types = ref([])
 const dialog = reactive({ visible: false, name: '', price: 100, capacity: 2, description: '' })

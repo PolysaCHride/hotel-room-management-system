@@ -216,8 +216,12 @@ CASHIER_PAGE = """<!DOCTYPE html>
 <style>
   * {{ margin: 0; padding: 0; box-sizing: border-box; font-family: 'PingFang SC','Microsoft YaHei',sans-serif; }}
   body {{ min-height: 100vh; display: flex; align-items: center; justify-content: center; background: #f0f2f5; }}
-  .cashier {{ width: 420px; background: #fff; border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,.12); overflow: hidden; }}
+  .cashier {{ width: 420px; max-width: 92vw; background: #fff; border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,.12); overflow: hidden; }}
   .head {{ padding: 18px 24px; background: #1677ff; color: #fff; display: flex; justify-content: space-between; align-items: center; }}
+  @media (max-width: 768px) {{
+    .head {{ padding: 14px 16px; }}
+    .body {{ padding: 18px 16px; }}
+  }}
   .head .title {{ font-size: 16px; font-weight: 600; }}
   .head .sandbox {{ font-size: 11px; border: 1px solid rgba(255,255,255,.6); border-radius: 4px; padding: 2px 6px; }}
   .body {{ padding: 24px; }}

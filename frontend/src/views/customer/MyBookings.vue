@@ -2,15 +2,15 @@
   <el-card shadow="never">
     <template #header><b>我的预订</b></template>
     <el-table :data="bookings" stripe>
-      <el-table-column prop="id" label="单号" width="70" />
-      <el-table-column prop="room_type_name" label="房型" width="120" />
+      <el-table-column prop="id" label="单号" width="60" />
+      <el-table-column prop="room_type_name" label="房型" width="100" />
       <el-table-column label="房间" width="90">
         <template #default="{ row }">
           <el-tag v-if="row.room_number" type="warning" effect="plain">{{ row.room_number }} 房</el-tag>
           <span v-else class="muted">未分配</span>
         </template>
       </el-table-column>
-      <el-table-column label="入住 — 离店" width="200">
+      <el-table-column label="入住 — 离店" min-width="180">
         <template #default="{ row }">
           {{ row.check_in_date }} ~ {{ row.check_out_date }}
           <el-tag v-if="row.renewal_status === 'pending'" size="small" type="warning" style="margin-left: 6px">
@@ -24,20 +24,20 @@
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="guests" label="人数" width="70" />
-      <el-table-column prop="estimated_price" label="预计费用(元)" width="120" />
+      <el-table-column v-if="!isMobile" prop="guests" label="人数" width="70" />
+      <el-table-column v-if="!isMobile" prop="estimated_price" label="预计费用(元)" width="120" />
       <el-table-column label="支付状态" width="100">
         <template #default="{ row }">
           <el-tag v-if="row.pay_status === 'paid'" type="success" effect="plain">已支付</el-tag>
           <el-tag v-else type="info" effect="plain">待支付</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="状态" width="100">
+      <el-table-column label="状态" width="90">
         <template #default="{ row }">
           <el-tag :type="STATUS_TAG[row.status]" effect="plain">{{ STATUS_LABEL[row.status] }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="created_at" label="下单时间" width="150" />
+      <el-table-column v-if="!isMobile" prop="created_at" label="下单时间" width="150" />
       <el-table-column label="操作" width="230" fixed="right">
         <template #default="{ row }">
           <el-button v-if="canPay(row)" link type="success" @click="payOnline(row)">在线支付</el-button>
@@ -73,6 +73,9 @@
 import { onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import client from '../../api/client'
+import { useResponsive } from '../../composables/useResponsive'
+
+const { isMobile } = useResponsive()
 
 const STATUS_LABEL = { pending: '待到店', checked_in: '已入住', completed: '已完成', cancelled: '已取消' }
 const STATUS_TAG = { pending: 'warning', checked_in: 'success', completed: 'info', cancelled: 'danger' }

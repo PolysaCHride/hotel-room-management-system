@@ -2,7 +2,7 @@
   <div>
     <!-- 统计卡片 -->
     <el-row :gutter="16" class="page-card">
-      <el-col :span="4" v-for="c in cards" :key="c.label">
+      <el-col :xs="12" :sm="8" :md="4" v-for="c in cards" :key="c.label" style="margin-bottom: 12px">
         <el-card shadow="hover">
           <div class="stat">
             <span class="num" :style="{ color: c.color }">{{ c.value }}</span>
@@ -13,13 +13,13 @@
     </el-row>
 
     <el-row :gutter="16">
-      <el-col :span="12">
+      <el-col :xs="24" :sm="12">
         <el-card shadow="never" class="page-card">
           <template #header><b>近 7 天营收（元）</b></template>
           <div ref="revenueChart" class="chart"></div>
         </el-card>
       </el-col>
-      <el-col :span="12">
+      <el-col :xs="24" :sm="12">
         <el-card shadow="never" class="page-card">
           <template #header><b>预订状态分布</b></template>
           <div ref="bookingChart" class="chart"></div>
