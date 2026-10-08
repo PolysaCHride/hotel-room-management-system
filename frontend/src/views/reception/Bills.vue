@@ -10,9 +10,12 @@
       <el-table-column prop="amount" label="金额(元)" width="105">
         <template #default="{ row }"><b>¥{{ row.amount }}</b></template>
       </el-table-column>
-      <el-table-column label="支付状态" width="95">
+      <el-table-column label="支付状态" width="110">
         <template #default="{ row }">
           <el-tag :type="row.is_paid ? 'success' : 'warning'">{{ row.is_paid ? '已支付' : '待支付' }}</el-tag>
+          <el-tooltip v-if="row.auto_checkout" content="该账单由系统超时自动退房生成" placement="top">
+            <el-tag type="danger" effect="plain" size="small" style="margin-left: 4px">自动退房</el-tag>
+          </el-tooltip>
         </template>
       </el-table-column>
       <el-table-column label="支付方式" width="95">

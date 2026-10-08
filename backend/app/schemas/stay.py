@@ -47,6 +47,7 @@ class BillOut(BaseModel):
     is_paid: bool
     pay_via: str = ""
     pay_no: Optional[str] = None
+    auto_checkout: bool = False
     created_at: Optional[datetime] = None
 
     model_config = {"from_attributes": True}

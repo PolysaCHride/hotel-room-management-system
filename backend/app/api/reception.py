@@ -180,4 +180,5 @@ def _bill_out(db: Session, bill: Bill) -> BillOut:
     record = db.get(CheckInRecord, bill.checkin_id)
     if record:
         item.guest_name = record.guest_name
+        item.auto_checkout = record.checkout_type == "auto"
     return item

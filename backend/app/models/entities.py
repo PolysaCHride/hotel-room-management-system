@@ -87,6 +87,7 @@ class CheckInRecord(Base):
     check_in_time: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
     expected_check_out: Mapped[str] = mapped_column(String(10))  # YYYY-MM-DD
     check_out_time: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    checkout_type: Mapped[str] = mapped_column(String(20), default="manual")  # manual=前台退房 / auto=超时自动退房
 
     booking: Mapped["Booking"] = relationship(back_populates="checkin_record")
     room: Mapped["Room"] = relationship(back_populates="checkin_records")

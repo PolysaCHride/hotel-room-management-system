@@ -1,0 +1,1180 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>宾馆客房管理系统 · 交互式知识图谱</title>
+<style>
+  :root{
+    --ink:#1e293b; --ink2:#475569; --ink3:#64748b; --line:#e2e8f0;
+    --bg:#f5f7fb; --panel:#ffffff; --accent:#6366f1;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{height:100%;}
+  body{
+    font-family:"PingFang SC","Microsoft YaHei","Noto Sans SC",system-ui,sans-serif;
+    background:var(--bg); color:var(--ink); overflow:hidden;
+  }
+  /* ===== 顶栏 ===== */
+  header{
+    height:62px; display:flex; align-items:center; gap:14px; padding:0 16px;
+    background:var(--panel); border-bottom:1px solid var(--line); position:relative; z-index:30;
+  }
+  .brand{display:flex; align-items:center; gap:10px; min-width:0;}
+  .brand .logo{font-size:26px;}
+  .brand h1{font-size:15px; font-weight:700; white-space:nowrap;}
+  .brand p{font-size:11px; color:var(--ink3); white-space:nowrap;}
+  .tabs{display:flex; gap:4px; background:#eef1f7; padding:4px; border-radius:10px; flex-shrink:0;}
+  .tabs button{
+    border:0; background:transparent; font:inherit; font-size:12.5px; color:var(--ink2);
+    padding:6px 12px; border-radius:8px; cursor:pointer; white-space:nowrap; transition:.15s;
+  }
+  .tabs button:hover{color:var(--ink);}
+  .tabs button.on{background:var(--panel); color:var(--accent); font-weight:600; box-shadow:0 1px 4px rgba(30,41,59,.12);}
+  .tools{margin-left:auto; display:flex; gap:8px; align-items:center;}
+  .tools .search{position:relative;}
+  .tools input{
+    width:210px; border:1px solid var(--line); border-radius:8px; padding:7px 26px 7px 30px;
+    font:inherit; font-size:12.5px; background:#f8fafc; outline:none; transition:.15s;
+  }
+  .tools input:focus{border-color:var(--accent); background:#fff; width:250px;}
+  .tools .search .sicon{position:absolute; left:9px; top:50%; transform:translateY(-50%); font-size:13px; opacity:.55;}
+  .tools .search .cnt{
+    position:absolute; right:7px; top:50%; transform:translateY(-50%); font-size:10.5px;
+    color:#fff; background:var(--accent); border-radius:8px; padding:1px 6px; display:none;
+  }
+  .iconbtn{
+    border:1px solid var(--line); background:#fff; border-radius:8px; width:34px; height:34px;
+    font-size:15px; cursor:pointer; color:var(--ink2); transition:.15s; flex-shrink:0;
+  }
+  .iconbtn:hover{border-color:var(--accent); color:var(--accent);}
+
+  /* ===== 画布区 ===== */
+  #stage{position:relative; height:calc(100% - 62px); overflow:hidden; background:
+    radial-gradient(circle at 30% 20%, #eef2fb 0%, var(--bg) 55%);}
+  #svg{position:absolute; inset:0; width:100%; height:100%; touch-action:none; cursor:grab;}
+  #svg.panning{cursor:grabbing;}
+  #viewport{transform-origin:0 0; transform-box:view-box;}
+  #viewport.anim{transition:transform .5s cubic-bezier(.25,.8,.3,1);}
+
+  /* 节点 */
+  .nodeg{cursor:pointer; transition:opacity .25s;}
+  .nodeg.dim{opacity:.13;}
+  .nodeg .box{transition:stroke-width .15s, filter .15s;}
+  .nodeg:hover .box, .nodeg.hot .box{stroke-width:2.4; filter:drop-shadow(0 3px 7px rgba(30,41,59,.22));}
+  .nodeg.sel .box{stroke-width:2.6; filter:drop-shadow(0 4px 10px rgba(99,102,241,.4));}
+  .pulse{animation:pulse 1.3s ease-in-out infinite; pointer-events:none;}
+  @keyframes pulse{0%,100%{stroke-opacity:.9; stroke-width:3;} 50%{stroke-opacity:.15; stroke-width:6;}}
+  /* 边 */
+  .edge{fill:none; stroke:#9aa7ba; stroke-width:1.5; transition:opacity .25s;}
+  .edge.dash{stroke-dasharray:6 5;}
+  .edge.acc{stroke:#6366f1; stroke-width:2.2;}
+  .edge.dim{opacity:.1;}
+  .elabel{font-size:10.5px; fill:#5b6b82; paint-order:stroke; stroke:#f2f5fa; stroke-width:4px;
+    font-weight:600; pointer-events:none; transition:opacity .25s;}
+  .elabel.dim{opacity:.08;}
+  .gframe{fill:none; stroke:#c9d4e3; stroke-width:1.2; stroke-dasharray:7 6; rx:14;}
+  .glabel{font-size:11.5px; fill:#8794a8; font-weight:700; letter-spacing:.5px;}
+  .anno{font-size:11px; fill:#8794a8;}
+
+  /* 浮层：介绍卡 */
+  .float{
+    position:absolute; z-index:10; background:rgba(255,255,255,.94); backdrop-filter:blur(4px);
+    border:1px solid var(--line); border-radius:12px; padding:10px 14px; max-width:330px;
+    font-size:12px; color:var(--ink2); line-height:1.7; box-shadow:0 4px 16px rgba(30,41,59,.08);
+  }
+  #intro{left:14px; top:12px;}
+  #intro b{color:var(--ink); font-size:12.5px;}
+  #intro .playbtn{
+    display:inline-flex; align-items:center; gap:5px; margin-top:7px; border:0; cursor:pointer;
+    background:var(--accent); color:#fff; font:inherit; font-size:12px; font-weight:600;
+    padding:6px 13px; border-radius:8px; transition:.15s;
+  }
+  #intro .playbtn:hover{filter:brightness(1.08);}
+
+  /* 图例（可点按筛选） */
+  #legend{
+    position:absolute; left:14px; bottom:14px; z-index:10; display:flex; flex-wrap:wrap; gap:6px;
+    max-width:430px;
+  }
+  #legend .chip{
+    display:inline-flex; align-items:center; gap:6px; background:rgba(255,255,255,.95);
+    border:1px solid var(--line); border-radius:20px; padding:4px 11px; font-size:11.5px;
+    color:var(--ink2); cursor:pointer; user-select:none; transition:.15s; box-shadow:0 1px 4px rgba(30,41,59,.06);
+  }
+  #legend .chip .dot{width:9px; height:9px; border-radius:50%;}
+  #legend .chip.off{opacity:.38; filter:grayscale(.7);}
+
+  /* 缩放按钮 */
+  #zoomctl{position:absolute; right:14px; bottom:14px; z-index:10; display:flex; flex-direction:column; gap:6px;}
+  #zoomctl button{
+    width:34px; height:34px; border-radius:9px; border:1px solid var(--line); background:#fff;
+    font-size:16px; color:var(--ink2); cursor:pointer; transition:.15s; box-shadow:0 1px 4px rgba(30,41,59,.08);
+  }
+  #zoomctl button:hover{color:var(--accent); border-color:var(--accent);}
+
+  /* 详情面板 */
+  #panel{
+    position:absolute; z-index:20; top:14px; right:14px; bottom:14px; width:352px;
+    background:var(--panel); border:1px solid var(--line); border-radius:16px;
+    box-shadow:0 10px 34px rgba(30,41,59,.16); transform:translateX(115%);
+    transition:transform .35s cubic-bezier(.3,.9,.3,1); display:flex; flex-direction:column; overflow:hidden;
+  }
+  #panel.open{transform:translateX(0);}
+  #panel .phead{padding:16px 18px 12px; border-bottom:1px solid var(--line); position:relative;}
+  #panel .cat{
+    display:inline-block; font-size:10.5px; font-weight:700; color:#fff; border-radius:6px;
+    padding:2px 8px; letter-spacing:1px; margin-bottom:8px;
+  }
+  #panel h2{font-size:17px; line-height:1.35; padding-right:26px;}
+  #panel .pos{
+    display:inline-block; margin-top:8px; font-family:Consolas,Menlo,monospace; font-size:10.5px;
+    background:#f1f5f9; color:#475692; border-radius:6px; padding:3px 8px; max-width:100%;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  #panel .close{
+    position:absolute; top:14px; right:12px; border:0; background:#f1f5f9; width:26px; height:26px;
+    border-radius:50%; cursor:pointer; font-size:13px; color:var(--ink3);
+  }
+  #panel .close:hover{background:#e2e8f0;}
+  #panel .pbody{padding:14px 18px 20px; overflow-y:auto; flex:1;}
+  #panel .sec{margin-bottom:14px;}
+  #panel .sec h3{font-size:11.5px; color:var(--ink3); font-weight:700; letter-spacing:1.5px; margin-bottom:6px;}
+  #panel .sec p{font-size:13px; line-height:1.85; color:var(--ink2);}
+  #panel .sec ul{list-style:none;}
+  #panel .sec li{
+    font-size:12.5px; line-height:1.75; color:var(--ink2); padding-left:16px; position:relative; margin-bottom:5px;
+  }
+  #panel .sec li::before{content:""; position:absolute; left:2px; top:9px; width:6px; height:6px;
+    border-radius:50%; background:var(--accent); opacity:.75;}
+  #panel .tip{
+    background:linear-gradient(135deg,#fffbeb,#fef3c7); border:1px solid #fde68a; border-radius:10px;
+    padding:10px 12px; font-size:12.5px; line-height:1.8; color:#78350f;
+  }
+  #panel .tip b{color:#92400e;}
+
+  /* 故事模式条 */
+  #storybar{
+    position:absolute; z-index:22; bottom:18px; left:50%; transform:translateX(-50%);
+    width:min(700px, calc(100% - 30px)); background:var(--panel); border:1px solid var(--line);
+    border-radius:16px; box-shadow:0 12px 36px rgba(30,41,59,.2); padding:14px 18px; display:none;
+  }
+  #storybar.show{display:block; animation:rise .3s ease;}
+  @keyframes rise{from{opacity:0; transform:translateX(-50%) translateY(14px);} to{opacity:1; transform:translateX(-50%) translateY(0);}}
+  #storybar .shead{display:flex; align-items:center; gap:10px; margin-bottom:6px;}
+  #storybar .stepno{font-size:11px; font-weight:700; color:var(--accent); background:#eef0ff;
+    border-radius:6px; padding:2px 9px; white-space:nowrap;}
+  #storybar .stitle{font-size:14px; font-weight:700;}
+  #storybar .sexit{margin-left:auto; border:0; background:none; color:var(--ink3); font-size:12px; cursor:pointer;}
+  #storybar .sexit:hover{color:#e11d48;}
+  #storybar .stext{font-size:12.8px; line-height:1.8; color:var(--ink2); min-height:44px;}
+  #storybar .snav{display:flex; align-items:center; gap:8px; margin-top:10px;}
+  #storybar .snav button{
+    border:1px solid var(--line); background:#fff; border-radius:8px; padding:6px 14px;
+    font:inherit; font-size:12.5px; cursor:pointer; color:var(--ink2); transition:.15s;
+  }
+  #storybar .snav button:hover:not(:disabled){border-color:var(--accent); color:var(--accent);}
+  #storybar .snav button:disabled{opacity:.4; cursor:default;}
+  #storybar .dots{display:flex; gap:4px; margin-left:auto; flex-wrap:wrap; justify-content:flex-end; max-width:300px;}
+  #storybar .dots i{width:7px; height:7px; border-radius:50%; background:#d7dee9; cursor:pointer;}
+  #storybar .dots i.on{background:var(--accent); transform:scale(1.25);}
+
+  /* 弹窗 */
+  .modal{
+    position:fixed; inset:0; z-index:60; background:rgba(15,23,42,.45); display:none;
+    align-items:center; justify-content:center; padding:20px;
+  }
+  .modal.show{display:flex;}
+  .modal .mcard{
+    background:#fff; border-radius:16px; max-width:560px; width:100%; max-height:82vh;
+    display:flex; flex-direction:column; overflow:hidden; box-shadow:0 24px 60px rgba(15,23,42,.35);
+    animation:rise2 .25s ease;
+  }
+  @keyframes rise2{from{opacity:0; transform:translateY(16px) scale(.98);} to{opacity:1; transform:none;}}
+  .modal .mhead{display:flex; align-items:center; padding:16px 20px 12px; border-bottom:1px solid var(--line);}
+  .modal .mhead h2{font-size:16px;}
+  .modal .mhead .close{margin-left:auto; border:0; background:#f1f5f9; width:28px; height:28px;
+    border-radius:50%; cursor:pointer; font-size:13px; color:var(--ink3);}
+  .modal .mbody{padding:16px 20px 22px; overflow-y:auto; font-size:13px; line-height:1.9; color:var(--ink2);}
+  .modal .mbody h4{font-size:13px; color:var(--ink); margin:14px 0 4px;}
+  .modal .mbody h4:first-child{margin-top:0;}
+  .modal .mbody code{
+    font-family:Consolas,Menlo,monospace; font-size:11.5px; background:#f1f5f9; color:#475692;
+    border-radius:5px; padding:1px 6px;
+  }
+  .modal .mbody dt{font-weight:700; color:var(--ink); margin-top:10px; font-size:13px;}
+  .modal .mbody dd{margin-left:0; font-size:12.5px;}
+  .modal .mbody .kbd{
+    display:inline-block; border:1px solid #cbd5e1; border-bottom-width:2px; border-radius:5px;
+    padding:0 6px; font-size:11px; background:#f8fafc;
+  }
+
+  /* ===== 移动端 ===== */
+  @media (max-width:860px){
+    header{flex-wrap:wrap; height:auto; padding:8px 12px; gap:8px;}
+    .brand p{display:none;}
+    .tabs{order:3; width:100%; overflow-x:auto;}
+    .tabs button{flex:1; padding:6px 8px; font-size:12px;}
+    .tools{margin-left:auto;}
+    .tools input{width:130px;} .tools input:focus{width:150px;}
+    #stage{height:calc(100% - 98px);}
+    #panel{top:auto; left:10px; right:10px; bottom:10px; width:auto; max-height:52vh;
+      transform:translateY(115%);}
+    #panel.open{transform:translateY(0);}
+    #intro{left:10px; top:10px; max-width:min(300px, 62vw); font-size:11.5px; padding:8px 11px;}
+    #legend{max-width:52vw; bottom:10px; left:10px;}
+    #zoomctl{bottom:10px; right:10px;}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <span class="logo">🏨</span>
+    <div>
+      <h1>宾馆客房管理系统 · 知识图谱</h1>
+      <p>给小白的「这个项目是怎么跑起来的」交互讲解</p>
+    </div>
+  </div>
+  <nav class="tabs" id="tabs"></nav>
+  <div class="tools">
+    <div class="search">
+      <span class="sicon">🔍</span>
+      <input id="searchInput" type="text" placeholder="搜索节点，如：支付 / 退房…" autocomplete="off">
+      <span class="cnt" id="searchCnt"></span>
+    </div>
+    <button class="iconbtn" id="glossaryBtn" title="小白词典">📖</button>
+    <button class="iconbtn" id="helpBtn" title="使用帮助">❓</button>
+  </div>
+</header>
+
+<div id="stage">
+  <svg id="svg">
+    <defs>
+      <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7.5" markerHeight="7.5" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+        <path d="M0,0 L10,5 L0,10 z" fill="#9aa7ba"></path>
+      </marker>
+      <marker id="arrowAcc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7.5" markerHeight="7.5" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+        <path d="M0,0 L10,5 L0,10 z" fill="#6366f1"></path>
+      </marker>
+    </defs>
+    <g id="viewport"></g>
+  </svg>
+
+  <div id="intro" class="float"></div>
+  <div id="legend"></div>
+  <div id="zoomctl">
+    <button id="zin" title="放大">＋</button>
+    <button id="zout" title="缩小">－</button>
+    <button id="zfit" title="复位">⤢</button>
+  </div>
+
+  <aside id="panel">
+    <div class="phead">
+      <span class="cat" id="pCat"></span>
+      <h2 id="pTitle"></h2>
+      <span class="pos" id="pPos"></span>
+      <button class="close" id="pClose">✕</button>
+    </div>
+    <div class="pbody">
+      <div class="sec"><h3>它是什么</h3><p id="pWhat"></p></div>
+      <div class="sec" id="pHowSec"><h3>怎么运作</h3><ul id="pHow"></ul></div>
+      <div class="sec" id="pTipSec"><div class="tip" id="pTip"></div></div>
+    </div>
+  </aside>
+
+  <div id="storybar">
+    <div class="shead">
+      <span class="stepno" id="sNo"></span>
+      <span class="stitle" id="sTitle"></span>
+      <button class="sexit" id="sExit">退出讲解 ✕</button>
+    </div>
+    <div class="stext" id="sText"></div>
+    <div class="snav">
+      <button id="sPrev">← 上一步</button>
+      <button id="sNext">下一步 →</button>
+      <div class="dots" id="sDots"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 帮助弹窗 -->
+<div class="modal" id="helpModal">
+  <div class="mcard">
+    <div class="mhead"><h2>怎么使用这张图谱</h2><button class="close" data-close>✕</button></div>
+    <div class="mbody">
+      <h4>🧭 四个视角，回答四个问题</h4>
+      <p><b>架构全景</b>——系统由哪些部分组成？一次点击如何在系统里旅行？<br>
+         <b>一单入住之旅</b>——一位客人从订房到退房，数据经历了什么？<br>
+         <b>数据蓝图</b>——数据库里存了哪些表？表和表怎么关联？<br>
+         <b>状态流转</b>——一个房间/订单/支付单的一生会经历哪些状态？</p>
+      <h4>🖱️ 交互方式</h4>
+      <p>· <b>拖拽</b>画布平移，<b>滚轮</b>（或右下角 ＋－）缩放；<br>
+         · <b>点击节点</b>：右侧弹出小白讲解，并高亮与它直接相连的部分；<br>
+         · <b>悬停节点</b>：临时高亮它的邻居；<br>
+         · <b>底部图例</b>：点一下可以隐藏/显示某一类节点；<br>
+         · <b>顶部搜索</b>：输入关键词（如「退款」）快速定位；<br>
+         · <b>📖 小白词典</b>：JWT、签名、幂等等术语的通俗解释。</p>
+      <h4>ℹ️ 关于被讲解的项目</h4>
+      <p>这是对仓库 <code>宾馆客房管理系统</code>（FastAPI + Vue3 + SQLite + 模拟支付网关）的讲解。
+         演示账号：<code>admin/admin123</code>（管理员）、<code>reception/123456</code>（服务员）、<code>guest/123456</code>（顾客）。
+         用 <code>docker compose up -d</code> 启动后访问 <code>http://localhost:9527</code>。</p>
+      <p style="margin-top:10px; color:#94a3b8; font-size:12px;">快捷键：<span class="kbd">Esc</span> 关闭面板/弹窗 · 讲解模式下 <span class="kbd">←</span><span class="kbd">→</span> 翻页</p>
+    </div>
+  </div>
+</div>
+
+<!-- 小白词典 -->
+<div class="modal" id="glossaryModal">
+  <div class="mcard">
+    <div class="mhead"><h2>📖 小白词典</h2><button class="close" data-close>✕</button></div>
+    <div class="mbody">
+      <dl>
+        <dt>JWT（门禁卡）</dt><dd>登录成功后后端发给你的一串加密字符串，之后每次请求都带着它，后端一看就知道「你是谁、有什么权限」。本项目里 24 小时过期。</dd>
+        <dt>HMAC 签名（防伪章）</dt><dd>通信双方约定一把密钥，发送方把参数排序拼接后用密钥算出「指纹」一起发过去；接收方用同一把密钥重算一遍，对得上才受理——防止有人伪造请求。</dd>
+        <dt>异步回调（留电话等通知）</dt><dd>你下单后不用一直等着，支付网关处理完后会「主动打电话」给酒店后端（服务器对服务器发 POST），告知支付结果。</dd>
+        <dt>幂等（按多少次电梯都只来一趟）</dt><dd>同一个通知重复送达很多次，业务后果和送达一次完全相同。本项目的回调接口对已终态的支付单直接回复成功并忽略。</dd>
+        <dt>补偿查询（等不到通知就主动去问）</dt><dd>万一回调在网络里丢了，后端会周期性地拿着支付单号去网关查询真实状态，把账补上——两条路保证最终一致。</dd>
+        <dt>反向代理（前台总机）</dt><dd>Nginx 站在所有服务前面，对外只有一个端口；外部请求先到它，再由它按路径分发给后面的内部服务。后端因此不必暴露在公网。</dd>
+        <dt>ORM（用 Python 对象操作表）</dt><dd>SQLAlchemy 让你写 <code>Booking.status = "checked_in"</code> 这样的 Python 代码，它自动翻译成 SQL 去读写数据库，不用手拼 SQL 字符串。</dd>
+        <dt>外键（表之间的亲属关系）</dt><dd>一张表里存另一张表的主键（如 bookings.customer_id 存 users.id），用来表示「这单预订属于哪个顾客」。</dd>
+        <dt>多态关联（biz_type + biz_id）</dt><dd>支付单可能指向「预订」也可能指向「账单」，用 biz_type 说明挂靠的是哪种业务、biz_id 说明是哪一条。</dd>
+        <dt>状态机（人生轨迹图）</dt><dd>对象在几个固定状态之间跳转，每次跳转都由明确的操作触发、且要满足校验条件。本项目的房间、预订、支付都有清晰的状态机。</dd>
+        <dt>原路退款（从哪来回哪去）</dt><dd>退款退回当初支付的渠道（支付宝付的退支付宝）。取消已支付预订时，后端会调用网关的退款接口模拟这一过程。</dd>
+        <dt>种子数据（开箱即用的演示数据）</dt><dd>首次启动时自动写入的演示内容：4 种房型、20 间客房、3 个演示账号、近 7 天的历史账单等，保证一打开就有东西可看。</dd>
+      </dl>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* ============================================================
+   数据：四个视图。坐标系为「世界坐标」，通过平移/缩放映射到屏幕。
+   ============================================================ */
+
+const CAT = {
+  role:  {name:"角色",      color:"#d97706", bg:"#fef3c7"},
+  fe:    {name:"前端界面",  color:"#2563eb", bg:"#dbeafe"},
+  infra: {name:"入口/网关", color:"#7c3aed", bg:"#ede9fe"},
+  be:    {name:"后端",      color:"#059669", bg:"#d1fae5"},
+  data:  {name:"数据",      color:"#ea580c", bg:"#ffedd5"},
+  book:  {name:"预订阶段",  color:"#d97706", bg:"#fef3c7"},
+  pay:   {name:"支付阶段",  color:"#7c3aed", bg:"#ede9fe"},
+  stay:  {name:"在住阶段",  color:"#059669", bg:"#d1fae5"},
+  out:   {name:"离店阶段",  color:"#ea580c", bg:"#ffedd5"},
+  cancel:{name:"取消分支",  color:"#e11d48", bg:"#ffe4e6"},
+  room:  {name:"房间",      color:"#059669", bg:"#d1fae5"},
+  bk:    {name:"预订",      color:"#2563eb", bg:"#dbeafe"},
+  pm:    {name:"支付",      color:"#7c3aed", bg:"#ede9fe"},
+  rn:    {name:"续订",      color:"#0d9488", bg:"#ccfbf1"},
+};
+
+/* ---------------- 视图 1：架构全景 ---------------- */
+const overview = {
+  title:"架构全景", w:1650, h:680,
+  intro:`<b>从左到右 = 一次点击的旅行</b>：你在浏览器里点一下 → 经过 Nginx 这扇「唯一的大门」→ 到前端页面或后端接口 → 读写数据库。鼠标悬停看关联，点击任意节点看小白讲解。`,
+  legend:["role","fe","infra","be","data"],
+  groups:[
+    {x:18,  y:150, w:296, h:400, label:"浏览器（人）"},
+    {x:356, y:96,  w:272, h:474, label:"前端 Vue3 单页应用（Nginx 托管）"},
+    {x:872, y:66,  w:482, h:560, label:"FastAPI 酒店后端（容器内 8000 · 仅内网可达）"},
+    {x:1382,y:150, w:248, h:296, label:"模拟支付网关（独立容器）"},
+  ],
+  nodes:[
+    {id:"r_customer", x:40, y:196, w:254, h:62, cat:"role", icon:"🧑", title:"顾客", sub:"浏览 / 预订 / 支付 / 续订申请",
+      pos:"frontend/src/views/customer/", what:"酒店的服务对象。注册登录后进入顾客门户：看房型、订房、在线支付、申请续订、取消订单。",
+      how:["可自助注册；演示账号 guest / 123456","只能操作自己的订单，越权访问后端直接返回 403","支付、续订等动作都发生在「我的预订」页面"],
+      tip:"前端按角色隔离了入口，后端接口还会用 JWT 里的角色再校验一遍——「前台拦一道，后台再拦一道」。"},
+    {id:"r_reception", x:40, y:316, w:254, h:62, cat:"role", icon:"🛎️", title:"服务员（前台）", sub:"入住 / 退房 / 收款 / 续订确认",
+      pos:"frontend/src/views/reception/", what:"前台操作员。工作台看「今日待到店」，办理入住（指定房或自动分房）、退房结算、账单收款、确认续订。",
+      how:["演示账号 reception / 123456","入住时可指定房间，也可让系统自动分配","退房后可直接现金收款，或发起在线收款"],
+      tip:"服务员看不到「调房价」这类管理功能——这是最小权限思想的体现。"},
+    {id:"r_admin", x:40, y:436, w:254, h:62, cat:"role", icon:"🧑‍💼", title:"管理员", sub:"房价 / 房间维修 / 账号 / 看板",
+      pos:"backend/app/api/admin.py", what:"系统管理者：调房型房价、把房间设为维修、管理员工与用户账号、看经营看板、必要时强制取消预订。",
+      how:["演示账号 admin / admin123","维修中的房间不参与任何分配","调价只影响之后的新订单，老订单价格不变"],
+      tip:"管理员改的是「价目表」（room_types.price），订单创建时价格已写死在订单里——这是订单快照思想。"},
+
+    {id:"nginx", x:648, y:12, w:236, h:62, cat:"infra", icon:"🚪", title:"Nginx 反向代理", sub:"对外唯一入口 · 宿主机 :9527",
+      pos:"docker-compose.yml", what:"整个系统对外的唯一大门：托管 Vue3 打包后的静态文件，并按路径把请求转发给内网里的两个容器。",
+      how:["/ → 返回前端页面","/api/* → 转发给 FastAPI 酒店后端（容器内 8000）","/gateway/* → 转发给模拟支付网关（容器内 8000）"],
+      tip:"后端和网关都不直接暴露公网，外界只能从这扇门进。想改端口？只需改 .env 里一处，所有配置集中管理。"},
+
+    {id:"fe_login", x:376, y:130, w:232, h:56, cat:"fe", icon:"🔑", title:"登录页 /login", sub:"三角色统一入口",
+      pos:"views/LoginView.vue · router/index.js", what:"三种角色用同一个登录页。登录成功后前端按角色把人领到对应门户。",
+      how:["JWT 存在浏览器 localStorage，之后每次请求带上","路由守卫：没登录去登录页；角色不对进不了别人的门户"],
+      tip:"前端的路由拦截只是体验上的第一道门，真正的安全由后端接口的 JWT 校验保证——绕过前端直接调接口也没用。"},
+    {id:"fe_customer", x:376, y:230, w:232, h:70, cat:"fe", icon:"🛒", title:"顾客门户 /customer", sub:"首页 · 我的预订 · 支付结果",
+      pos:"views/customer/Home.vue · MyBookings.vue", what:"顾客的界面：首页挑房型订房；「我的预订」里支付 / 取消 / 申请续订；支付结果页负责等待支付结果。",
+      how:["首页选择日期后实时显示每种房型还剩几间","支付结果页每 2 秒轮询一次，防止回调丢失"],
+      tip:"“轮询补单”这个细节在支付结果页里——它是支付链路的兜底保险。"},
+    {id:"fe_reception", x:376, y:344, w:232, h:70, cat:"fe", icon:"🔔", title:"服务员前台 /reception", sub:"工作台 · 在住与退房 · 账单",
+      pos:"views/reception/Dashboard.vue · Stays.vue", what:"服务员的界面：工作台（今日待到店、办理入住、续订确认）、在住列表与退房、账单记录。",
+      how:["办理入住可选「指定房间」或「自动分配」","退房生成账单后，直接在账单页收款"],
+      tip:"「今日待到店」= 预订状态为待到店、且入住日期是今天的订单——前台每天就盯着它干活。"},
+    {id:"fe_admin", x:376, y:458, w:232, h:70, cat:"fe", icon:"📊", title:"管理员后台 /admin", sub:"看板 · 房型 · 房间 · 预订 · 用户",
+      pos:"views/admin/*.vue", what:"管理员的界面：经营看板（入住率、营收图表）、房型房价管理、房间管理（维修/恢复）、全部预订、员工与用户管理。",
+      how:["房间可设为维修中，恢复后重新参与分配","可新增服务员账号、禁用任意账号"],
+      tip:"看板上的数字不是拍脑袋：入住率 = 在住房间 ÷ 总房间，营收来自账单汇总。"},
+
+    {id:"be_auth", x:896, y:110, w:212, h:54, cat:"be", icon:"🔑", title:"auth.py 认证", sub:"注册 / 登录 / 发 JWT",
+      pos:"api/auth.py · core/security.py", what:"注册、登录、查看当前用户。登录成功签发 JWT（24 小时有效），密码用 bcrypt 哈希后入库。",
+      how:["JWT 里带着 user_id 和 role","每个需要登录的接口都先验这张「门禁卡」"],
+      tip:"数据库里存的是密码的哈希值，连管理员都看不到你的明文密码。"},
+    {id:"be_rooms", x:896, y:178, w:212, h:54, cat:"be", icon:"🛏️", title:"rooms.py 房型查询", sub:"公开接口 · 查空房",
+      pos:"api/rooms.py", what:"不用登录就能访问：房型列表（含某日期段剩余空房数）、房间列表、可订数量查询。",
+      how:["剩余数 = 排除维修中/在住的房间，再排除日期重叠的预订"],
+      tip:"「某天还有没有房」本质是「日期区间是否重叠」的数学题：你的入住日 < 别人离店日 且 你的离店日 > 别人入住日。"},
+    {id:"be_bookings", x:896, y:246, w:212, h:54, cat:"be", icon:"📝", title:"bookings.py 预订", sub:"下单 / 取消 / 续订申请",
+      pos:"api/bookings.py", what:"顾客的预订接口：创建预订（预订即分房）、我的预订、取消预订（已支付的自动退款）、申请续订。",
+      how:["创建时立即锁定一间具体房间","取消时如果已在线支付，先走网关退款再作废"],
+      tip:"“预订即分房”是这个项目最有意思的设计：下单那一刻房间就定了，后面入住、冲突检测都围绕这间房。"},
+    {id:"be_reception", x:896, y:314, w:212, h:54, cat:"be", icon:"🔔", title:"reception.py 前台", sub:"入住 / 退房 / 收款 / 续订确认",
+      pos:"api/reception.py", what:"服务员的接口：可用房间、房态概览、今日待到店、办理入住、在住列表、退房、账单、现金收款、续订确认/拒绝/直接续订。",
+      how:["入住校验：没到入住日期不能提前入住","退房按「住了几晚 × 当前房价」自动生成账单"],
+      tip:"「不能提前入住」就是一行日期比较：booking.check_in_date > 今天 → 拒绝。真实酒店的规则，代码里就这么直白。"},
+    {id:"be_payments", x:896, y:382, w:212, h:54, cat:"be", icon:"💳", title:"payments.py 支付", sub:"下单 / 回调 / 补偿查询",
+      pos:"api/payments.py · services/payment_service.py", what:"支付相关接口：创建支付单（返回收银台地址）、查询支付单状态（含补偿查询）、接收网关异步回调（验签 + 幂等）。",
+      how:["下单时带 HMAC-SHA256 签名，网关验签才受理","回调验签通过且幂等检查后才更新订单/账单"],
+      tip:"钱有没有真的到账，以网关的「官方通知」为准，绝不听浏览器的一面之词。"},
+    {id:"be_admin", x:896, y:450, w:212, h:54, cat:"be", icon:"🧑‍💼", title:"admin.py 管理", sub:"房型 / 房间 / 用户 / 统计",
+      pos:"api/admin.py", what:"管理员的接口：房型增删改（调价）、房间增删改与维修状态、员工/用户管理、全部预订与管理员取消、经营统计。",
+      how:["所有接口都要求 admin 角色，其他角色访问返回 403"],
+      tip:"管理员取消预订和顾客自己取消走的是同一套业务逻辑，只是权限更高。"},
+
+    {id:"be_svc", x:1136, y:200, w:212, h:118, cat:"be", icon:"⚙️", title:"业务服务层 services/", sub:"真正的业务规则都在这",
+      pos:"backend/app/services/", what:"五个服务文件承载全部业务规则，接口层只负责「接请求、查权限」，服务层负责「办事」。",
+      how:["booking_service：冲突检测、分房、估价、取消退款","stay_service：入住、退房、账单生成","renewal_service：续订申请/确认/拒绝","payment_service：签名、回调、幂等、补偿、退款","stats_service：经营统计"],
+      tip:"分层的意义：顾客在线支付和服务员代收都用同一个「创建支付」逻辑——写一次就够了。"},
+    {id:"be_models", x:1136, y:360, w:212, h:56, cat:"be", icon:"🧩", title:"SQLAlchemy 模型", sub:"7 张表的 Python 描述",
+      pos:"models/entities.py", what:"用 Python 类描述 7 张数据表（用户/房型/房间/预订/入住记录/账单/支付单），ORM 负责把对象操作翻译成 SQL。",
+      how:["类属性 ↔ 表字段，关联用 relationship 声明"],
+      tip:"想快速读懂后端？先读 entities.py 这 126 行——整个系统的数据骨架全在里面。"},
+    {id:"be_db", x:1136, y:462, w:212, h:60, cat:"data", icon:"🗄️", title:"SQLite hotel.db", sub:"单文件数据库 · 宿主机 ./data/",
+      pos:"db/database.py · db/init_data.py", what:"单文件数据库，挂在宿主机 ./data/ 目录（容器重建数据不丢）。首次启动自动写入种子数据。",
+      how:["种子数据：4 种房型、20 间客房、3 个演示账号、近 7 天历史账单","备份 = 直接复制 hotel.db 文件"],
+      tip:"SQLite 就是「一个文件即数据库」，对毕业设计和小项目来说简单可靠。想重置演示数据？删掉文件重启即可。"},
+
+    {id:"gw", x:1400, y:200, w:212, h:96, cat:"infra", icon:"🏦", title:"模拟支付网关", sub:"自研的「假支付宝/微信」",
+      pos:"mock-gateway/main.py", what:"一个独立的 FastAPI 服务，扮演第三方支付平台：下单、收银台页面、查询、退款、回调商户，交互全部带 HMAC 签名。",
+      how:["/api/create 商户下单 → 返回收银台地址","/pay/{txn} 收银台：选支付宝/微信，模拟成功/失败/取消","/api/query 供商户对账补单","/api/refund 模拟原路退款","支付结果 → POST 商户 notify_url（异步回调）"],
+      tip:"它和酒店后端是两个独立进程、两个数据库——正因如此才需要「回调 + 补偿查询」这套真实支付才有的机制。面试讲支付，讲它就够了。"},
+    {id:"gwdb", x:1400, y:340, w:212, h:56, cat:"data", icon:"📜", title:"gateway.db", sub:"网关自己的交易流水库",
+      pos:"mock-gateway/main.py", what:"网关自己的 SQLite 库，记录每笔交易的创建、支付结果、退款——和酒店后端的 payments 表互为对账依据。",
+      how:["两边各记一笔账，才能对账（补单）"],
+      tip:"真实支付里「商户账」和「渠道账」就是这样的两本账。"},
+  ],
+  edges:[
+    {a:"r_customer", b:"nginx", label:"HTTP 请求"},
+    {a:"r_reception", b:"nginx"}, {a:"r_admin", b:"nginx"},
+    {a:"nginx", b:"fe_login"}, {a:"nginx", b:"fe_customer", label:"返回页面"}, {a:"nginx", b:"fe_reception"}, {a:"nginx", b:"fe_admin"},
+    {a:"nginx", b:"be_auth", label:"转发 /api/*"}, {a:"nginx", b:"be_rooms"}, {a:"nginx", b:"be_bookings"},
+    {a:"nginx", b:"be_reception"}, {a:"nginx", b:"be_payments"}, {a:"nginx", b:"be_admin"},
+    {a:"nginx", b:"gw", label:"/gateway/* 收银台"},
+    {a:"be_auth", b:"be_svc"}, {a:"be_rooms", b:"be_svc"}, {a:"be_bookings", b:"be_svc"},
+    {a:"be_reception", b:"be_svc"}, {a:"be_payments", b:"be_svc"}, {a:"be_admin", b:"be_svc"},
+    {a:"be_svc", b:"be_models", label:"ORM 读写"}, {a:"be_models", b:"be_db"},
+    {a:"be_payments", b:"gw", label:"下单/查询/退款（带签名）", curve:.12},
+    {a:"gw", b:"be_payments", label:"异步回调 notify（验签+幂等）", dash:true, curve:.16},
+    {a:"gw", b:"gwdb"},
+  ],
+};
+
+/* ---------------- 视图 2：一单入住之旅 ---------------- */
+const journey = {
+  title:"一单入住之旅", w:1680, h:740,
+  intro:`<b>把一次完整的住店拆成 14 步</b>，颜色代表阶段：预订 → 支付 → 在住 → 离店。点击节点看讲解，或点下面按钮让系统按顺序带你走一遍。`,
+  legend:["book","pay","stay","out","cancel"],
+  storyMode:true,
+  nodes:[
+    {id:"j1", x:40,   y:150, w:204, h:92, cat:"book", icon:"🪪", title:"① 注册 / 登录", sub:"POST /api/auth/login\n统一入口 · 发 JWT 门禁卡",
+      pos:"api/auth.py · core/security.py", what:"门口先登记身份。三种角色（顾客/服务员/管理员）用同一个登录入口，登录成功后发一张 24 小时的「电子工牌」（JWT）。",
+      how:["顾客可自助注册；员工账号由管理员创建","密码 bcrypt 哈希存储，库里看不到明文","之后每个请求都带上 JWT，后端据此鉴权"],
+      tip:"JWT 就像酒店房卡：入住时发放，到期自动失效，能开哪些门（接口）取决于你的角色。",
+      story:"小明注册并登录成功，系统发给他一张 24 小时有效的「电子工牌」（JWT）。从此他每次操作都亮出这张卡，系统就知道他是谁、能干什么。"},
+    {id:"j2", x:270,  y:150, w:204, h:92, cat:"book", icon:"🔍", title:"② 挑房型 · 看空房", sub:"GET /api/rooms/types\n按日期实时算剩余空房",
+      pos:"api/rooms.py · services/booking_service.py", what:"顾客在首页浏览 4 种房型，选定日期后实时看到「该日期段还剩几间」。",
+      how:["不是简单数房间：排除维修中/在住，再排除日期重叠的预订","核心是 room_has_conflict 的日期段冲突检测"],
+      tip:"判断「有没有房」= 判断「日期区间是否重叠」：你的入住日 < 别人离店日 且 你的离店日 > 别人入住日。",
+      story:"小明看中「大床房」，选了下周一住两晚。页面显示「还剩 3 间」——这个数字是系统现场算出来的：把维修中、已住人、日期撞车的房间全排除。"},
+    {id:"j3", x:500,  y:150, w:204, h:92, cat:"book", icon:"📝", title:"③ 下单 · 预订即分房", sub:"POST /api/bookings\n冲突检测 → 锁定具体房间",
+      pos:"services/booking_service.py create_booking()", what:"下单那一刻，系统立刻把一间具体房间「锁定」给这单（预订即分房），并按 夜数 × 房价 估出总价。",
+      how:["find_assignable_room 按房号顺序找一间日期不冲突的房","预订状态 = 待到店(pending)，支付状态 = 未支付","若入住日就是今天，房间状态立即变为「已订」"],
+      tip:"为什么下单就锁房？这样「谁订了哪间」一目了然，后续入住、续订、冲突检测全围绕这间房展开。",
+      story:"小明提交订单的瞬间，系统在后台挑中 8803 房并「锁定」给他，订单状态是「待到店」。注意：这时还没付钱呢。"},
+    {id:"j4", x:730,  y:150, w:204, h:92, cat:"pay", icon:"💳", title:"④ 发起在线支付", sub:"POST /api/payments/create\n带 HMAC 签名找网关下单",
+      pos:"services/payment_service.py create_payment()", what:"顾客在「我的预订」点在线支付。后端生成支付单（PayNo），带着 HMAC-SHA256 签名去网关创建交易，拿回收银台地址。",
+      how:["金额取自订单的预估价 estimated_price","已有待支付单则复用，避免重复下单","签名 = 参数按 key 排序拼接后用约定密钥做 HMAC"],
+      tip:"HMAC 签名像「盖章防伪」：只有拿同一把密钥盖的章网关才认，防止别人伪造订单。",
+      story:"小明点「在线支付」。酒店后端悄悄做了一件事：生成支付单号，盖上「防伪章」（HMAC 签名），向支付网关正式下单。"},
+    {id:"j5", x:960,  y:150, w:204, h:92, cat:"pay", icon:"🏦", title:"⑤ 收银台付款", sub:"GET /gateway/pay/{txn}\n模拟支付宝/微信收银台",
+      pos:"mock-gateway/main.py", what:"浏览器跳到模拟收银台（长得像支付宝/微信），显示商户、订单号、金额，选渠道后点「付款成功 / 失败 / 取消」模拟真实支付。",
+      how:["收银台是网关提供的独立页面，经 Nginx 的 /gateway/* 访问","点什么结果，网关就记什么状态","交易流水存在网关自己的 gateway.db"],
+      tip:"这是项目自己写的「假支付宝」，但下单、验签、回调、对账、退款整套流程与真支付一模一样。",
+      story:"页面跳到一个仿真收银台。小明选了「支付宝」，果断点了「付款成功」——网关把这笔交易记进了自己的小账本。"},
+    {id:"j6", x:1190, y:150, w:204, h:92, cat:"pay", icon:"📲", title:"⑥ 异步回调记账", sub:"POST /api/payment/notify\n验签 + 幂等 → 标记已支付",
+      pos:"services/payment_service.py handle_notify()", what:"网关主动「打电话」给酒店后端（服务器对服务器 POST）告知结果。后端验签、幂等检查后，把预订标记为「已支付」。",
+      how:["回调带签名，verify_sign 验证数据没被篡改","幂等：同一通知来多次，只有第一次生效","更新：支付单 → success，预订 pay_status → paid"],
+      tip:"为什么不听浏览器的「我付完了」？浏览器说的话不可信，必须等网关官方通知，钱才算真到账。",
+      story:"几乎同时，网关给酒店后端打了个「电话」（异步回调）。后端先验签名防假冒，再做幂等检查，然后把小明的订单标成「已支付」。"},
+    {id:"j7", x:1420, y:150, w:204, h:92, cat:"pay", icon:"🔁", title:"⑦ 补偿查询兜底", sub:"GET /api/payments/{pay_no}\n结果页 2 秒轮询 · 补单",
+      pos:"api/payments.py · sync_payment_status()", what:"万一回调在网络中丢了，订单会一直「待支付」。支付结果页每 2 秒轮询后端，后端主动去网关查这笔交易并同步状态——双保险。",
+      how:["后端只在支付单还是 pending 时才去查","查到已支付 → 执行与回调相同的记账逻辑","这就是真实支付里的「对账 / 补单」机制"],
+      tip:"回调是「网关打给你」，补偿查询是「你打给网关」——两条路保证最终一致。",
+      story:"假如刚才那个「电话」没打通（回调丢失）怎么办？支付结果页每 2 秒问一次后端，后端就去网关主动查账，把钱账补上。双保险！"},
+    {id:"j8", x:1420, y:430, w:204, h:92, cat:"stay", icon:"🧳", title:"⑧ 到店办入住", sub:"POST /api/reception/check-in\n今日待到店 · 不能提前入住",
+      pos:"api/reception.py · stay_service.do_check_in()", what:"入住日当天，服务员在工作台「今日待到店」看到这单，点办理入住——用预订分配的房间，或换一间/自动分配。",
+      how:["校验：没到入住日期不能提前入住；过期订单不能入住","散客（无预订）也能开房：选房型 → 自动分房","被别人订了的房不能给别客入住，层层校验"],
+      tip:"「不能提前入住」就是一行日期比较：check_in_date > 今天 → 拒绝。真实酒店规则，代码里就这么直白。",
+      story:"周一到了，小明来到前台。服务员在工作台看到他的名字，点「办理入住」。系统确认：日期到了、订单有效、8803 房给他留着呢。"},
+    {id:"j9", x:1190, y:430, w:204, h:92, cat:"stay", icon:"🛎️", title:"⑨ 开门住下", sub:"一次动作 · 三处联动\n房间→在住 · 预订→已入住",
+      pos:"services/stay_service.py", what:"办理成功的一瞬间，系统三处同时变化：生成入住记录、房间变「在住」、预订变「已入住」。",
+      how:["入住记录：客人信息、操作员、入住时间、预计离店","Room.status → occupied（在住）","Booking.status → checked_in，房间号对齐实际房间"],
+      tip:"一次动作改多张表，这就是「业务事务」：要么都成功，要么都不生效。",
+      story:"叮——房卡到手。系统里：8803 房变成「在住」，小明的订单变成「已入住」，一张入住记录（谁、哪间房、住到几号）也生成了。"},
+    {id:"j10", x:960, y:430, w:204, h:92, cat:"stay", icon:"📅", title:"⑩ 住得久？申请续订", sub:"renew-request → 服务员确认\n延长离店日 · 再次冲突检查",
+      pos:"services/renewal_service.py", what:"想多住几天：顾客提交新离店日期（申请态），服务员确认或拒绝；服务员也可以不经申请直接帮客人续。",
+      how:["申请只记录「想要的新日期」，暂不改订单","确认时再次冲突检查：多住的晚上这间房没被别人订","通过后：离店日期、预估房价、预计离店时间一起更新"],
+      tip:"续订本质是把离店日往后挪，但要保证多住的日子没被别人订——所以确认时再做一次冲突检测。",
+      story:"小明住得好想多待两天，在手机上提交了续订申请。服务员看到申请，确认 8803 房之后没被别人订走，点了「确认」——离店日期改成了周四。"},
+    {id:"j11", x:730,  y:430, w:204, h:92, cat:"out", icon:"🧾", title:"⑪ 退房结算", sub:"POST /api/reception/check-out\n按天计费生成账单 · 释放房间",
+      pos:"services/stay_service.py do_check_out()", what:"退房时后端按「住了几晚 × 当前房价」自动生成账单，房间释放，预订画上句号（completed）。",
+      how:["天数 = max(退房日 − 入住日, 1)，不足一天按一天","账单初始为「待支付」","房间释放后若有「今天到店」的预订，直接变 booked 等客"],
+      tip:"房间释放后不是无脑变「空闲」——下一批客人今天就到的话，系统直接标「已订」，防止被别人占走。",
+      story:"周四中午小明退房。系统一算：住了 3 晚 × 房价 = 账单金额，生成一张「待支付」账单；8803 房释放回可用状态。"},
+    {id:"j12", x:500,  y:430, w:204, h:92, cat:"out", icon:"💰", title:"⑫ 收钱（双通道）", sub:"现金 / 在线\n在线收款复用网关收银台",
+      pos:"api/reception.py · api/payments.py", what:"前台收款两条路：现金——点一下立即记为已收；在线——再走一次网关收银台，回调确认后记账。",
+      how:["现金：cash-pay 接口，is_paid 立即 = true","在线：create_payment(biz_type=bill)，复用整套收银台机制","账单记录支付流水号 pay_no 便于对账"],
+      tip:"同一个网关模块服务两种场景：订房付房费、退房付账单——只是挂靠的业务对象不同（biz_type）。",
+      story:"前台问：「现金还是扫码？」现金就点一下立刻入账；扫码则再走一次收银台。小明选了现金，账单立刻标成「已支付（现金）」。"},
+    {id:"j13", x:270,  y:430, w:204, h:92, cat:"out", icon:"📈", title:"⑬ 数据沉淀 · 经营看板", sub:"GET /api/admin/stats\n入住率 · 营收 · 管理功能",
+      pos:"api/admin.py · services/stats_service.py", what:"所有单据落库后，管理员看板就能算出入住率、营收、房型占比；管理员还管房价、维修、员工账号。",
+      how:["stats_service 汇总房间/预订/账单数据","管理员调价只影响之后的新订单","管理员可强制取消违规预订（已支付自动退款）"],
+      tip:"订单创建时价格已「拍快照」写死在订单里——管理员后来调价，老订单价格不变。这就是订单快照思想。",
+      story:"小明的旅程结束了，但数据留下了。晚上经理打开看板：今天的入住率、营收曲线、哪个房型最畅销，一目了然。"},
+    {id:"j14", x:40,   y:560, w:204, h:92, cat:"cancel", icon:"🚫", title:"计划有变？取消预订", sub:"POST /api/bookings/{id}/cancel\n仅待到店可取消 · 自动原路退款",
+      pos:"services/booking_service.py cancel_booking()", what:"只有「待到店」的预订能取消。如果已经在线支付过，系统自动调用网关「原路退款」，再作废订单、释放房间。",
+      how:["先查有无支付成功的支付单 → 有则先退款","订单 → cancelled，未确认的续订申请一并作废","房间释放后按「是否有今日到店预订」重算状态"],
+      tip:"「原路退款」：钱从哪条渠道来退回哪条渠道——真实支付的标配，这里由网关模拟实现。",
+      story:"分支剧情：如果小明临时不来了呢？在「待到店」状态他可以一键取消；要是已经付过钱，系统还会自动把钱原路退回他的「支付宝」。"},
+  ],
+  edges:[
+    {a:"j1", b:"j2"}, {a:"j2", b:"j3"}, {a:"j3", b:"j4"},
+    {a:"j4", b:"j5"}, {a:"j5", b:"j6"}, {a:"j6", b:"j7", label:"回调丢失时的兜底", dash:true},
+    {a:"j7", b:"j8", curve:.05},
+    {a:"j8", b:"j9"}, {a:"j9", b:"j10"}, {a:"j10", b:"j11"}, {a:"j11", b:"j12"}, {a:"j12", b:"j13"},
+    {a:"j3", b:"j14", label:"不住了？取消 / 退款", dash:true, curve:.1},
+  ],
+  story:[
+    {id:"j1"}, {id:"j2"}, {id:"j3"}, {id:"j4"}, {id:"j5"}, {id:"j6"}, {id:"j7"},
+    {id:"j8"}, {id:"j9"}, {id:"j10"}, {id:"j11"}, {id:"j12"}, {id:"j13"}, {id:"j14"},
+  ],
+};
+
+/* ---------------- 视图 3：数据蓝图（ER） ---------------- */
+function erNode(o){ // 依据字段行数自动算高度
+  const fields = o.fields.length;
+  o.h = 30 + fields*16 + 10; o.type="er"; return o;
+}
+const er = {
+  title:"数据蓝图", w:1440, h:800,
+  intro:`<b>系统的记忆 = 7 张 SQLite 表</b>（像 7 张互相引用的 Excel）。箭头上的字是「外键」——一张表里存着另一张表的编号。<span style="color:#ea580c">●</span> 标记的是状态类字段，它们的变化见「状态流转」视图。`,
+  legend:["data","be"],
+  nodes:[
+    erNode({id:"e_users", x:60, y:120, w:250, cat:"data", icon:"🧑", title:"users 用户", what:"系统里所有的「人」：顾客、服务员、管理员共用一张表，用 role 字段区分身份。",
+      pos:"models/entities.py · User",
+      tip:"三种角色一张表、一个 role 字段搞定，是小项目的常见做法；接口层还会用 JWT 里的角色再校验一遍。",
+      fields:[
+      "id 主键","username 用户名（唯一）","password_hash 密码哈希","real_name / phone 姓名·电话","● role 角色（顾客/服务员/管理员）","● is_active 是否启用","created_at 注册时间"]}),
+    erNode({id:"e_types", x:60, y:480, w:250, cat:"data", icon:"🏷️", title:"room_types 房型", what:"酒店的「价目表」：房型名称、每晚价格、可住人数。管理员在后台调价，改的就是这张表。",
+      pos:"models/entities.py · RoomType",
+      tip:"订单创建时会把当时的房价「拍快照」写进订单（estimated_price），之后调价不影响老订单。",
+      fields:[
+      "id 主键","name 房型名（唯一）","price 每晚价格","capacity 可住人数","description 描述"]}),
+    erNode({id:"e_rooms", x:450, y:600, w:250, cat:"data", icon:"🚪", title:"rooms 房间", what:"酒店的 20 间实体房：房号、楼层、属于哪个房型、当前状态。所有分房与冲突检测都围绕这张表。",
+      pos:"models/entities.py · Room",
+      tip:"status 的四个值就是「状态流转」视图里的房间状态机；维修中的房间不参与任何分配。",
+      fields:[
+      "id 主键","room_number 房号（唯一）","type_id → room_types 所属房型","floor 楼层","● status 空闲/已订/在住/维修","note 备注"]}),
+    erNode({id:"e_bookings", x:440, y:200, w:270, cat:"data", icon:"📝", title:"bookings 预订（核心表）", what:"整个系统的核心表：一笔预订 = 某顾客锁定某房型的一间房、住某几晚。状态、支付、续订三类字段都挂在它身上。",
+      pos:"models/entities.py · Booking",
+      tip:"「预订即分房」就体现在 room_id 上：下单那一刻这间房就定了，后续入住、续订、冲突检测都围绕它。",
+      fields:[
+      "id 主键","customer_id → users 下单人","room_type_id → room_types 房型/房价","room_id → rooms 锁定的房（可空）","check_in_date / check_out_date 日期","guests 人数 · estimated_price 预估价","● status 待到店/已入住/已取消/已完成","● pay_status 未支付/已支付","● renewal_status 续订：无/待确认/已确认/已拒绝","requested_check_out 申请续订的目标日期"]}),
+    erNode({id:"e_checkins", x:860, y:170, w:270, cat:"data", icon:"🛎️", title:"checkin_records 入住记录", what:"一次入住的事实记录：谁、住哪间房、几点入住、预计/实际几点走、谁经办的。退房后 check_out_time 被填上。",
+      pos:"models/entities.py · CheckInRecord",
+      tip:"booking_id 可空 = 支持「散客开房」：没有预订也能直接来住，此时记录只有客人信息没有订单。",
+      fields:[
+      "id 主键","booking_id → bookings 来源预订（可空=散客）","customer_id → users 客人（可空）","guest_name / guest_phone 客人信息","room_id → rooms 哪间房","operator_id → users 经办服务员","check_in_time 入住时间","expected_check_out 预计离店","check_out_time 实际退房（空=在住）"]}),
+    erNode({id:"e_bills", x:860, y:530, w:270, cat:"data", icon:"🧾", title:"bills 账单", what:"退房时自动生成的账单：住了几晚 × 单价 = 金额，记录收款方式（现金/在线）与支付流水号。",
+      pos:"models/entities.py · Bill",
+      tip:"room_number / room_price 是「快照」字段——就算之后调价、房间删除，账单依然对得上当时的实际情况。",
+      fields:[
+      "id 主键","checkin_id → checkin_records 哪次入住","room_number 房号（冗余快照）","days 天数 · room_price 单价 · amount 金额","● is_paid 是否已收款","● pay_via 收款方式（现金/在线）","pay_no 支付流水号（在线时）"]}),
+    erNode({id:"e_payments", x:1160, y:120, w:250, cat:"data", icon:"💳", title:"payments 支付单", what:"每一次在线支付 / 退款的流水。通过 biz_type + biz_id「多态」地指向一笔预订或一张账单。",
+      pos:"models/entities.py · Payment",
+      tip:"status 的五个值就是支付状态机；回调丢失时，后端靠 gateway_txn_no 去网关对账补单。",
+      fields:[
+      "id 主键 · pay_no 单号（唯一）","biz_type 挂靠预订或账单","biz_id 挂靠对象的 id","amount 金额 · channel 支付宝/微信","● status 待支付/成功/失败/取消/已退款","gateway_txn_no 网关交易号","paid_at 支付时间"]}),
+  ],
+  edges:[
+    {a:"e_users", b:"e_bookings", label:"customer_id · 1:N 下单"},
+    {a:"e_types", b:"e_bookings", label:"room_type_id · 1:N 定房价"},
+    {a:"e_types", b:"e_rooms", label:"type_id · 1:N 房型下有这些房"},
+    {a:"e_rooms", b:"e_bookings", label:"room_id · 1:N 预订锁定的房"},
+    {a:"e_bookings", b:"e_checkins", label:"booking_id · 1:1 入住时生成"},
+    {a:"e_checkins", b:"e_bills", label:"checkin_id · 1:N 退房时生成"},
+    {a:"e_users", b:"e_checkins", label:"operator_id / customer_id", dash:true, curve:-.16},
+    {a:"e_payments", b:"e_bookings", label:"biz_type='booking' + biz_id", dash:true, curve:-.14},
+    {a:"e_payments", b:"e_bills", label:"biz_type='bill' + biz_id", dash:true},
+  ],
+  extra:[
+    {id:"e_note_gateway", x:1160, y:470, w:250, h:120, type:"note", title:"🔗 与网关的两本账",
+      lines:["酒店后端的 payments 表记商户账，","网关的 gateway.db 记渠道账。","回调丢失时，后端拿 gateway_txn_no","去 /api/query 对账补单。"]},
+  ],
+};
+
+/* ---------------- 视图 4：状态流转 ---------------- */
+function st(id,x,y,w,cat,title,sub,what,tip){
+  return {id,x,y,w,h:46,type:"state",cat,icon:"",title,sub,what,how:[],tip,pos:""};
+}
+const states = {
+  title:"状态流转", w:1360, h:860,
+  intro:`<b>每个核心对象都有自己的「人生轨迹」</b>：圆角框是状态，箭头上的字是触发跳转的操作。颜色区分四种对象：🟢 房间 · 🔵 预订 · 🟣 支付 · 🩵 续订。`,
+  legend:["room","bk","pm","rn"],
+  groups:[
+    {x:20, y:60,  w:1320, h:200, label:"🛏️ 房间状态 Room.status"},
+    {x:20, y:290, w:1320, h:170, label:"📝 预订状态 Booking.status"},
+    {x:20, y:490, w:1320, h:170, label:"💳 支付单状态 Payment.status"},
+    {x:20, y:690, w:1320, h:150, label:"📅 续订状态 Booking.renewal_status"},
+  ],
+  nodes:[
+    st("s_avail", 70, 170, 140, "room", "空闲 available", "", "可被预订分配，也可办理入住。", "「空闲」不等于「可以订」：还要看它在你的日期段有没有被别人订（冲突检测）。"),
+    st("s_booked", 320, 170, 140, "room", "已订 booked", "", "有预订今天到店，房间被预留，只允许该预订的客人入住。", "booked 是「留给今天要来的客人」的状态——别的客人办入住会被拒绝。"),
+    st("s_occ", 570, 170, 140, "room", "在住 occupied", "", "有客人住着，不参与任何分配。", ""),
+    st("s_maint", 320, 92, 140, "room", "维修中 maintenance", "", "管理员设置，暂停服务；恢复后重新可用。", "维修中的房间不参与分配，也不会被预订选中。"),
+
+    st("s_pending", 70, 390, 140, "bk", "待到店 pending", "", "预订已创建、还没入住。可以支付、取消、申请续订。", "绝大多数规则都围绕「待到店」：只有它能取消、能在线支付、能办入住。"),
+    st("s_cin", 420, 390, 140, "bk", "已入住 checked_in", "", "已办理入住，住到退房为止。", ""),
+    st("s_done", 770, 390, 140, "bk", "已完成 completed", "", "已退房结算，旅程结束。", ""),
+    st("s_ccel", 1120, 390, 140, "bk", "已取消 cancelled", "", "订单作废；已支付的自动原路退款。", ""),
+
+    st("s_ppend", 70, 590, 140, "pm", "待支付 pending", "", "支付单已创建，等结果。", ""),
+    st("s_psuc", 420, 590, 140, "pm", "成功 success", "", "回调或补偿查询确认到账。", ""),
+    st("s_pref", 770, 590, 140, "pm", "已退款 refunded", "", "取消已支付预订时，网关退款后变成此状态。", ""),
+    st("s_pfail", 1120, 545, 140, "pm", "失败 failed", "", "收银台点了「付款失败」。", ""),
+    st("s_pcxl", 1120, 635, 140, "pm", "已取消 cancelled", "", "收银台点了「取消支付」。", ""),
+
+    st("s_rnone", 70, 760, 130, "rn", "无 none", "", "没有进行中的续订。", ""),
+    st("s_rpend", 420, 760, 130, "rn", "待确认 pending", "", "顾客已提交续订申请，等服务员处理。", ""),
+    st("s_rok", 770, 760, 130, "rn", "已确认 confirmed", "", "续订生效：离店日期、房价、预计离店时间一起更新。", ""),
+    st("s_rno", 1120, 760, 130, "rn", "已拒绝 rejected", "", "服务员拒绝了这个申请，订单保持原样。", ""),
+  ],
+  edges:[
+    {a:"s_avail", b:"s_booked", label:"有预订到入住日"},
+    {a:"s_booked", b:"s_occ", label:"办理入住"},
+    {a:"s_occ", b:"s_avail", label:"退房释放", curve:.18},
+    {a:"s_avail", b:"s_maint", label:"设为维修", curve:.2},
+    {a:"s_maint", b:"s_avail", label:"维修完成恢复", dash:true, curve:.2},
+    {a:"s_booked", b:"s_avail", label:"预订取消后重算", dash:true, curve:.28},
+
+    {a:"s_pending", b:"s_cin", label:"到店办理入住（不能提前）"},
+    {a:"s_cin", b:"s_done", label:"退房结算"},
+    {a:"s_pending", b:"s_ccel", label:"取消（仅待到店可取消）", curve:.22},
+
+    {a:"s_ppend", b:"s_psuc", label:"回调验签 / 补偿查询（幂等）"},
+    {a:"s_psuc", b:"s_pref", label:"取消预订 → 原路退款"},
+    {a:"s_ppend", b:"s_pfail", label:"付款失败", curve:.15},
+    {a:"s_ppend", b:"s_pcxl", label:"取消支付", curve:.15},
+
+    {a:"s_rnone", b:"s_rpend", label:"顾客申请续订"},
+    {a:"s_rpend", b:"s_rok", label:"服务员确认（冲突检查）"},
+    {a:"s_rpend", b:"s_rno", label:"服务员拒绝"},
+    {a:"s_rnone", b:"s_rok", label:"服务员直接续订", dash:true, curve:.25},
+  ],
+};
+
+const VIEWS = {overview, journey, er, states};
+
+/* ============================================================
+   渲染引擎
+   ============================================================ */
+const svg = document.getElementById("svg");
+const viewport = document.getElementById("viewport");
+const stage = document.getElementById("stage");
+const SVGNS = "http://www.w3.org/2000/svg";
+
+let curView = "overview";
+let cam = {x:0, y:0, k:1};
+let nodesById = new Map();     // 当前视图的节点
+let edgesCur = [];             // 当前视图的边
+let adj = new Map();           // 邻接：id -> Set(ids)
+let nodeEls = new Map();       // id -> <g>
+let edgeEls = [];              // {el, labelEl, a, b}
+let activeId = null;           // 详情面板固定的节点
+let hoverId = null;
+let catOff = new Set();        // 被隐藏的分类
+let searchHits = new Set();
+let storyIdx = -1;
+
+function el(tag, attrs, parent){
+  const e = document.createElementNS(SVGNS, tag);
+  for(const k in attrs) e.setAttribute(k, attrs[k]);
+  if(parent) parent.appendChild(e);
+  return e;
+}
+function txt(x, y, str, attrs, parent){
+  const t = el("text", Object.assign({x, y}, attrs), parent);
+  t.textContent = str;
+  return t;
+}
+
+/* --- 几何：矩形边界交点 --- */
+function anchor(n, tx, ty){
+  const cx = n.x + n.w/2, cy = n.y + n.h/2;
+  const dx = tx - cx, dy = ty - cy;
+  if(dx === 0 && dy === 0) return [cx, cy];
+  const sx = dx !== 0 ? (n.w/2 + 4) / Math.abs(dx) : Infinity;
+  const sy = dy !== 0 ? (n.h/2 + 4) / Math.abs(dy) : Infinity;
+  const s = Math.min(sx, sy);
+  return [cx + dx*s, cy + dy*s];
+}
+function edgePath(a, b, curve){
+  const [ax, ay] = anchor(a, b.x+b.w/2, b.y+b.h/2);
+  const [bx, by] = anchor(b, a.x+a.w/2, a.y+a.h/2);
+  const mx = (ax+bx)/2, my = (ay+by)/2;
+  const dx = bx-ax, dy = by-ay;
+  const px = -dy, py = dx;
+  const len = Math.hypot(dx, dy) || 1;
+  const off = (curve||0) * len;
+  const c1x = ax + dx/3 + px/len*off, c1y = ay + dy/3 + py/len*off;
+  const c2x = ax + dx*2/3 + px/len*off, c2y = ay + dy*2/3 + py/len*off;
+  const d = `M${ax.toFixed(1)},${ay.toFixed(1)} C${c1x.toFixed(1)},${c1y.toFixed(1)} ${c2x.toFixed(1)},${c2y.toFixed(1)} ${bx.toFixed(1)},${by.toFixed(1)}`;
+  // 贝塞尔 t=0.5 的点，用于放标签
+  const t = .5, mt = 1-t;
+  const lx = mt*mt*mt*ax + 3*mt*mt*t*c1x + 3*mt*t*t*c2x + t*t*t*bx;
+  const ly = mt*mt*mt*ay + 3*mt*mt*t*c1y + 3*mt*t*t*c2y + t*t*t*by;
+  return {d, lx, ly};
+}
+
+/* --- 节点绘制 --- */
+function drawNode(n, layer){
+  const g = el("g", {class:"nodeg", "data-id":n.id}, layer);
+  const c = CAT[n.cat];
+  n.type = n.type || "card";
+
+  if(n.type === "er"){
+    const HH = 30;
+    el("rect", {class:"box", x:n.x, y:n.y, width:n.w, height:n.h, rx:11,
+      fill:"#fff", stroke:c.color, "stroke-width":1.6}, g);
+    el("rect", {x:n.x, y:n.y, width:n.w, height:HH, rx:11, fill:c.bg}, g);
+    el("rect", {x:n.x, y:n.y+HH-11, width:n.w, height:11, fill:c.bg}, g);
+    txt(n.x+10, n.y+20, `${n.icon} ${n.title}`, {"font-size":12.5, "font-weight":"700", fill:"#1e293b"}, g);
+    n.fields.forEach((f, i)=>{
+      const yy = n.y + HH + 15 + i*16;
+      if(f.startsWith("●")){
+        el("circle", {cx:n.x+13, cy:yy-3.5, r:3.2, fill:"#ea580c"}, g);
+        txt(n.x+21, yy, f.slice(1).trim(), {"font-size":10.8, fill:"#475569"}, g);
+      }else{
+        txt(n.x+11, yy, f, {"font-size":10.8, fill:"#475569"}, g);
+      }
+    });
+  }
+  else if(n.type === "state"){
+    el("rect", {class:"box", x:n.x, y:n.y, width:n.w, height:n.h, rx:n.h/2,
+      fill:c.bg, stroke:c.color, "stroke-width":1.6}, g);
+    txt(n.x+n.w/2, n.y+n.h/2+4.5, n.title, {"font-size":12.5, "font-weight":"700", fill:"#1e293b", "text-anchor":"middle"}, g);
+  }
+  else if(n.type === "note"){
+    el("rect", {class:"box", x:n.x, y:n.y, width:n.w, height:n.h, rx:11,
+      fill:"#f8fafc", stroke:"#cbd5e1", "stroke-width":1.3, "stroke-dasharray":"5 4"}, g);
+    txt(n.x+12, n.y+22, n.title, {"font-size":12, "font-weight":"700", fill:"#475569"}, g);
+    n.lines.forEach((L, i)=> txt(n.x+12, n.y+42+i*16, L, {"font-size":10.5, fill:"#64748b"}, g));
+  }
+  else{ // card
+    const lines = (n.sub||"").split("\n");
+    const h = n.h || (46 + lines.length*15 + 12);
+    if(!n.h) n.h = h;
+    el("rect", {class:"box", x:n.x, y:n.y, width:n.w, height:h, rx:12,
+      fill:c.bg, stroke:c.color, "stroke-width":1.6}, g);
+    // 图标底色圆
+    el("circle", {cx:n.x+26, cy:n.y+h/2, r:16, fill:"rgba(255,255,255,.75)"}, g);
+    txt(n.x+26, n.y+h/2+7, n.icon, {"font-size":17, "text-anchor":"middle"}, g);
+    txt(n.x+50, n.y+h/2 - (lines.length-1)*7.5 - 3, n.title,
+      {"font-size":13.5, "font-weight":"700", fill:"#1e293b"}, g);
+    lines.forEach((L, i)=>{
+      txt(n.x+50, n.y+h/2 + (i - lines.length + 1)*7.5 + 13.5 + (lines.length-1)*2, L,
+        {"font-size":10.6, fill:"#51607a"}, g);
+    });
+  }
+  // 呼吸高亮圈（搜索命中）
+  const pr = el("rect", {class:"pulse", x:n.x-4, y:n.y-4, width:n.w+8, height:(n.h||64)+8, rx:14,
+    fill:"none", stroke:"#f43f5e", visibility:"hidden"}, g);
+  n._pulse = pr;
+  g.addEventListener("pointerdown", e=>{ e.stopPropagation(); });
+  g.addEventListener("click", e=>{ e.stopPropagation(); onNodeClick(n); });
+  g.addEventListener("mouseenter", ()=>{ hoverId = n.id; applyVis(); });
+  g.addEventListener("mouseleave", ()=>{ hoverId = null; applyVis(); });
+  return g;
+}
+
+/* --- 渲染当前视图 --- */
+function render(){
+  viewport.innerHTML = "";
+  nodesById.clear(); nodeEls.clear(); edgeEls = []; adj.clear();
+  searchHits.clear(); activeId = null; storyIdx = -1;
+  document.getElementById("panel").classList.remove("open");
+  document.getElementById("storybar").classList.remove("show");
+  const v = VIEWS[curView];
+
+  const gl = el("g", {}, viewport);   // 分组框
+  const ed = el("g", {}, viewport);   // 边
+  const nl = el("g", {}, viewport);   // 节点
+
+  (v.groups||[]).forEach(gf=>{
+    el("rect", {class:"gframe", x:gf.x, y:gf.y, width:gf.w, height:gf.h, rx:16}, gl);
+    txt(gf.x+14, gf.y+20, gf.label, {class:"glabel"}, gl);
+  });
+
+  v.nodes.forEach(n=> nodesById.set(n.id, n));
+  (v.extra||[]).forEach(n=> nodesById.set(n.id, n));
+  (v.edges||[]).forEach(e=>{
+    if(!adj.has(e.a)) adj.set(e.a, new Set());
+    if(!adj.has(e.b)) adj.set(e.b, new Set());
+    adj.get(e.a).add(e.b); adj.get(e.b).add(e.a);
+  });
+
+  // 边
+  (v.edges||[]).forEach(e=>{
+    const na = nodesById.get(e.a), nb = nodesById.get(e.b);
+    if(!na || !nb) return;
+    const {d, lx, ly} = edgePath(na, nb, e.curve);
+    const p = el("path", {class:"edge"+(e.dash?" dash":""), d, "marker-end":"url(#arrow)"}, ed);
+    let lbl = null;
+    if(e.label){
+      lbl = txt(lx, ly-6, e.label, {class:"elabel", "text-anchor":"middle"}, ed);
+    }
+    edgeEls.push({el:p, labelEl:lbl, a:e.a, b:e.b});
+  });
+
+  // 节点
+  v.nodes.forEach(n=> nodeEls.set(n.id, drawNode(n, nl)));
+  (v.extra||[]).forEach(n=> nodeEls.set(n.id, drawNode(n, nl)));
+
+  // 介绍卡
+  document.getElementById("intro").innerHTML = v.intro +
+    (v.storyMode ? `<br><button class="playbtn" id="playBtn">▶ 开始讲解（14 步）</button>` : "");
+  if(v.storyMode){
+    document.getElementById("playBtn").addEventListener("click", startStory);
+  }
+  renderLegend();
+  fitView();
+  applyVis();
+}
+
+/* --- 图例 / 分类筛选 --- */
+function renderLegend(){
+  const box = document.getElementById("legend");
+  box.innerHTML = "";
+  VIEWS[curView].legend.forEach(key=>{
+    const c = CAT[key];
+    const chip = document.createElement("div");
+    chip.className = "chip" + (catOff.has(key) ? " off" : "");
+    chip.innerHTML = `<span class="dot" style="background:${c.color}"></span>${c.name}`;
+    chip.addEventListener("click", ()=>{
+      catOff.has(key) ? catOff.delete(key) : catOff.add(key);
+      chip.classList.toggle("off");
+      applyVis();
+    });
+    box.appendChild(chip);
+  });
+}
+
+/* --- 高亮/淡出逻辑 --- */
+function neighborsOf(id){
+  return adj.get(id) || new Set();
+}
+function applyVis(){
+  const focus = activeId || hoverId;
+  const nbrs = focus ? neighborsOf(focus) : null;
+  nodeEls.forEach((g, id)=>{
+    const n = nodesById.get(id);
+    g.classList.remove("dim", "sel", "hot");
+    let dim = catOff.has(n.cat);
+    if(searchHits.size && !searchHits.has(id)) dim = true;
+    if(focus){
+      if(id === focus){ g.classList.add(n.type==="note"?"":"sel"); }
+      else if(nbrs && nbrs.has(id)){ g.classList.add("hot"); }
+      else dim = true;
+    }
+    if(dim) g.classList.add("dim");
+    if(n._pulse) n._pulse.setAttribute("visibility", searchHits.has(id) ? "visible" : "hidden");
+  });
+  edgeEls.forEach(e=>{
+    e.el.classList.remove("dim", "acc");
+    if(e.labelEl) e.labelEl.classList.remove("dim");
+    let dim = false;
+    if(catOff.has(nodesById.get(e.a).cat) || catOff.has(nodesById.get(e.b).cat)) dim = true;
+    if(searchHits.size) dim = true;
+    if(focus){
+      if(e.a === focus || e.b === focus){ e.el.classList.add("acc"); dim = false; }
+      else dim = true;
+    }
+    if(dim){
+      e.el.classList.add("dim");
+      if(e.labelEl) e.labelEl.classList.add("dim");
+    }
+  });
+}
+
+/* --- 详情面板 --- */
+function openPanel(n){
+  const c = CAT[n.cat];
+  document.getElementById("pCat").textContent = c.name;
+  document.getElementById("pCat").style.background = c.color;
+  document.getElementById("pTitle").textContent = (n.icon ? n.icon + " " : "") + n.title;
+  document.getElementById("pPos").textContent = n.pos || "";
+  document.getElementById("pPos").style.display = n.pos ? "inline-block" : "none";
+  document.getElementById("pWhat").textContent = n.what || "";
+  const how = n.how || [];
+  document.getElementById("pHowSec").style.display = how.length ? "" : "none";
+  document.getElementById("pHow").innerHTML = how.map(h=>`<li>${h}</li>`).join("");
+  const tip = n.tip || "";
+  document.getElementById("pTipSec").style.display = tip ? "" : "none";
+  document.getElementById("pTip").innerHTML = tip ? `<b>💡 小白贴士</b><br>${tip}` : "";
+  document.getElementById("panel").classList.add("open");
+}
+document.getElementById("pClose").addEventListener("click", ()=>{
+  document.getElementById("panel").classList.remove("open");
+  activeId = null; applyVis();
+});
+
+function onNodeClick(n){
+  activeId = n.id;
+  openPanel(n);
+  applyVis();
+}
+
+/* --- 相机：平移/缩放/适配 --- */
+function cw(){ return stage.clientWidth; }
+function ch(){ return stage.clientHeight; }
+function applyCam(anim){
+  if(anim){ viewport.classList.add("anim"); setTimeout(()=>viewport.classList.remove("anim"), 520); }
+  viewport.style.transform = `translate(${cam.x}px,${cam.y}px) scale(${cam.k})`;
+}
+function fitView(){
+  const v = VIEWS[curView];
+  const pad = 30;
+  const k = Math.min((cw()-pad*2)/v.w, (ch()-pad*2)/v.h);
+  cam.k = k;
+  cam.x = (cw() - v.w*k)/2;
+  cam.y = (ch() - v.h*k)/2;
+  applyCam(true);
+}
+function focusNode(n, kMin){
+  const k = Math.max(cam.k, kMin || .9);
+  cam.k = k;
+  cam.x = cw()/2 - (n.x + n.w/2)*k;
+  cam.y = ch()/2 - (n.y + n.h/2)*k;
+  applyCam(true);
+}
+function screenToWorld(sx, sy){
+  const r = svg.getBoundingClientRect();
+  return [ (sx - r.left - cam.x)/cam.k, (sy - r.top - cam.y)/cam.k ];
+}
+
+let pointers = new Map();
+let panStart = null, pinchStart = null, moved = 0;
+
+svg.addEventListener("pointerdown", e=>{
+  svg.setPointerCapture(e.pointerId);
+  pointers.set(e.pointerId, [e.clientX, e.clientY]);
+  if(pointers.size === 1){
+    panStart = [e.clientX, e.clientY, cam.x, cam.y];
+    moved = 0;
+    svg.classList.add("panning");
+    viewport.classList.remove("anim");
+  }else if(pointers.size === 2){
+    const pts = [...pointers.values()];
+    pinchStart = {d:Math.hypot(pts[0][0]-pts[1][0], pts[0][1]-pts[1][1]),
+                  mx:(pts[0][0]+pts[1][0])/2, my:(pts[0][1]+pts[1][1])/2, k:cam.k, cx:cam.x, cy:cam.y};
+    panStart = null;
+  }
+});
+svg.addEventListener("pointermove", e=>{
+  if(!pointers.has(e.pointerId)) return;
+  pointers.set(e.pointerId, [e.clientX, e.clientY]);
+  if(pointers.size === 2 && pinchStart){
+    const pts = [...pointers.values()];
+    const d = Math.hypot(pts[0][0]-pts[1][0], pts[0][1]-pts[1][1]);
+    const mx = (pts[0][0]+pts[1][0])/2, my = (pts[0][1]+pts[1][1])/2;
+    let k = pinchStart.k * (d / (pinchStart.d || 1));
+    k = Math.max(.3, Math.min(2.6, k));
+    const wx = (pinchStart.mx - pinchStart.cx)/pinchStart.k;
+    const wy = (pinchStart.my - pinchStart.cy)/pinchStart.k;
+    cam.k = k; cam.x = mx - wx*k; cam.y = my - wy*k;
+    applyCam(false);
+    return;
+  }
+  if(panStart){
+    const dx = e.clientX - panStart[0], dy = e.clientY - panStart[1];
+    moved = Math.max(moved, Math.hypot(dx, dy));
+    if(moved > 4){
+      cam.x = panStart[2] + dx; cam.y = panStart[3] + dy;
+      applyCam(false);
+    }
+  }
+});
+function endPointer(e){
+  pointers.delete(e.pointerId);
+  if(pointers.size < 2) pinchStart = null;
+  if(pointers.size === 0){
+    svg.classList.remove("panning");
+    if(panStart && moved <= 4){ // 视为点击空白
+      activeId = null;
+      document.getElementById("panel").classList.remove("open");
+      applyVis();
+    }
+    panStart = null;
+  }
+}
+svg.addEventListener("pointerup", endPointer);
+svg.addEventListener("pointercancel", endPointer);
+
+svg.addEventListener("wheel", e=>{
+  e.preventDefault();
+  const r = svg.getBoundingClientRect();
+  const mx = e.clientX - r.left, my = e.clientY - r.top;
+  const wx = (mx - cam.x)/cam.k, wy = (my - cam.y)/cam.k;
+  let k = cam.k * Math.exp(-e.deltaY * 0.0012);
+  k = Math.max(.3, Math.min(2.6, k));
+  cam.k = k; cam.x = mx - wx*k; cam.y = my - wy*k;
+  applyCam(false);
+}, {passive:false});
+
+document.getElementById("zin").addEventListener("click", ()=>{
+  cam.k = Math.min(2.6, cam.k*1.25);
+  cam.x = cw()/2 - (cw()/2 - cam.x)*1.25; cam.y = ch()/2 - (ch()/2 - cam.y)*1.25;
+  applyCam(true);
+});
+document.getElementById("zout").addEventListener("click", ()=>{
+  cam.k = Math.max(.3, cam.k/1.25);
+  cam.x = cw()/2 - (cw()/2 - cam.x)/1.25; cam.y = ch()/2 - (ch()/2 - cam.y)/1.25;
+  applyCam(true);
+});
+document.getElementById("zfit").addEventListener("click", fitView);
+window.addEventListener("resize", fitView);
+
+/* --- 标签页 --- */
+function renderTabs(){
+  const box = document.getElementById("tabs");
+  box.innerHTML = "";
+  const icons = {overview:"🗺️", journey:"🧳", er:"🗄️", states:"🔁"};
+  Object.keys(VIEWS).forEach(k=>{
+    const b = document.createElement("button");
+    b.textContent = `${icons[k]} ${VIEWS[k].title}`;
+    if(k === curView) b.classList.add("on");
+    b.addEventListener("click", ()=>{
+      if(curView === k) return;
+      curView = k; catOff.clear();
+      document.getElementById("searchInput").value = "";
+      document.getElementById("searchCnt").style.display = "none";
+      renderTabs(); render();
+    });
+    box.appendChild(b);
+  });
+}
+
+/* --- 搜索 --- */
+const searchInput = document.getElementById("searchInput");
+const searchCnt = document.getElementById("searchCnt");
+let searchCycle = -1;
+searchInput.addEventListener("input", doSearch);
+searchInput.addEventListener("keydown", e=>{
+  if(e.key === "Enter" && searchHits.size){
+    const ids = [...searchHits].filter(id=>nodesById.get(id) && nodesById.get(id).type !== "note");
+    if(!ids.length) return;
+    searchCycle = (searchCycle + 1) % ids.length;
+    const n = nodesById.get(ids[searchCycle]);
+    focusNode(n, .95); activeId = n.id; openPanel(n); applyVis();
+  }
+});
+function doSearch(){
+  const q = searchInput.value.trim().toLowerCase();
+  searchHits.clear(); searchCycle = -1;
+  if(q){
+    nodesById.forEach((n, id)=>{
+      if(n.type === "note") return;
+      const hay = [n.title, n.sub, n.what, (n.how||[]).join(" "), n.tip, n.pos].join(" ").toLowerCase();
+      if(hay.includes(q)) searchHits.add(id);
+    });
+  }
+  searchCnt.style.display = searchHits.size ? "block" : "none";
+  searchCnt.textContent = searchHits.size;
+  applyVis();
+}
+
+/* --- 故事模式（旅程视图） --- */
+function startStory(){
+  storyIdx = 0;
+  document.getElementById("storybar").classList.add("show");
+  renderStory();
+}
+function renderStory(){
+  const steps = VIEWS.journey.story;
+  const s = steps[storyIdx];
+  const n = nodesById.get(s.id);
+  document.getElementById("sNo").textContent = `第 ${storyIdx+1} / ${steps.length} 步`;
+  document.getElementById("sTitle").textContent = n.title.replace(/^[①-⑮]\s*/, "");
+  document.getElementById("sText").textContent = n.story || n.what;
+  document.getElementById("sPrev").disabled = storyIdx === 0;
+  document.getElementById("sNext").disabled = storyIdx === steps.length-1;
+  const dots = document.getElementById("sDots");
+  dots.innerHTML = steps.map((_, i)=>`<i class="${i===storyIdx?"on":""}" data-i="${i}"></i>`).join("");
+  dots.querySelectorAll("i").forEach(d=> d.addEventListener("click", ()=>{ storyIdx = +d.dataset.i; renderStory(); }));
+  activeId = s.id;
+  focusNode(n, 1);
+  applyVis();
+}
+document.getElementById("sPrev").addEventListener("click", ()=>{
+  if(storyIdx > 0){ storyIdx--; renderStory(); }
+});
+document.getElementById("sNext").addEventListener("click", ()=>{
+  const steps = VIEWS.journey.story;
+  if(storyIdx < steps.length-1){ storyIdx++; renderStory(); }
+});
+document.getElementById("sExit").addEventListener("click", ()=>{
+  storyIdx = -1;
+  document.getElementById("storybar").classList.remove("show");
+  activeId = null; applyVis();
+});
+
+/* --- 弹窗 --- */
+function bindModal(id, btnId){
+  const m = document.getElementById(id);
+  document.getElementById(btnId).addEventListener("click", ()=> m.classList.add("show"));
+  m.querySelectorAll("[data-close]").forEach(b=> b.addEventListener("click", ()=> m.classList.remove("show")));
+  m.addEventListener("click", e=>{ if(e.target === m) m.classList.remove("show"); });
+}
+bindModal("helpModal", "helpBtn");
+bindModal("glossaryModal", "glossaryBtn");
+document.addEventListener("keydown", e=>{
+  if(e.key === "Escape"){
+    document.querySelectorAll(".modal.show").forEach(m=> m.classList.remove("show"));
+    document.getElementById("panel").classList.remove("open");
+    document.getElementById("storybar").classList.remove("show");
+    storyIdx = -1; activeId = null; applyVis();
+  }
+  if(storyIdx >= 0 && VIEWS.journey.story){
+    if(e.key === "ArrowRight") document.getElementById("sNext").click();
+    if(e.key === "ArrowLeft") document.getElementById("sPrev").click();
+  }
+});
+
+/* --- 启动 --- */
+renderTabs();
+render();
+</script>
+</body>
+</html>

@@ -120,6 +120,17 @@ def init_database(db: Session):
         db.add(record)
     db.flush()
 
+    # 一笔超期未退房的在住记录（昨天就该离店）——演示"超时自动退房"
+    overdue_room = next(r for r in rooms if r.status == config.ROOM_AVAILABLE and r.type_id == types[0].id)
+    overdue_room.status = config.ROOM_OCCUPIED
+    db.add(CheckInRecord(
+        guest_name="马大哈", guest_phone="13877779999",
+        room_id=overdue_room.id, operator_id=reception.id,
+        check_in_time=datetime.combine(today - timedelta(days=3), datetime.min.time()).replace(hour=14),
+        expected_check_out=(today - timedelta(days=1)).isoformat(),
+    ))
+    db.flush()
+
     # 一间维修中的房
     rooms[-1].status = config.ROOM_MAINTENANCE
     rooms[-1].note = "空调检修中"
@@ -164,8 +175,12 @@ def init_database(db: Session):
                        amount=float(lux.price) * 2, channel="alipay", status="success",
                        paid_at=datetime.combine(today, datetime.min.time()).replace(hour=9)))
 
-    # 已入住的预订（关联在住记录）
-    pending_records = db.query(CheckInRecord).filter(CheckInRecord.check_out_time.is_(None)).all()
+    # 已入住的预订（关联在住记录；散客无账号，跳过）
+    pending_records = (
+        db.query(CheckInRecord)
+        .filter(CheckInRecord.check_out_time.is_(None), CheckInRecord.customer_id.isnot(None))
+        .all()
+    )
     checked_in_bookings = []
     for record in pending_records:
         rt = db.get(RoomType, record.room.type_id)

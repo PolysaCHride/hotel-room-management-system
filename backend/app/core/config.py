@@ -38,3 +38,10 @@ PAY_MERCHANT_ID = os.getenv("PAY_MERCHANT_ID", "hotel")
 PAY_SECRET = os.getenv("PAY_SECRET", "demo-pay-secret-change-me")
 # 网关服务器间回调本服务的地址（容器内为 http://backend:8000）
 NOTIFY_BASE_URL = os.getenv("NOTIFY_BASE_URL", "http://127.0.0.1:18000")
+
+# 自动退房：超过预计离店日的退房时限（当天 CHECKOUT_HOUR 点）再宽限 GRACE_HOURS 小时
+# 仍未到前台办理退房的，由系统自动办理退房并生成待支付账单
+AUTO_CHECKOUT_ENABLED = os.getenv("AUTO_CHECKOUT_ENABLED", "true").lower() == "true"
+AUTO_CHECKOUT_CHECKOUT_HOUR = int(os.getenv("AUTO_CHECKOUT_CHECKOUT_HOUR", "12"))
+AUTO_CHECKOUT_GRACE_HOURS = float(os.getenv("AUTO_CHECKOUT_GRACE_HOURS", "2"))
+AUTO_CHECKOUT_INTERVAL_SECONDS = int(os.getenv("AUTO_CHECKOUT_INTERVAL_SECONDS", "60"))

@@ -111,7 +111,7 @@ def do_check_in(db: Session, operator_id: int, data) -> CheckInRecord:
     return record
 
 
-def do_check_out(db: Session, record_id: int) -> Bill:
+def do_check_out(db: Session, record_id: int, auto: bool = False) -> Bill:
     record = db.get(CheckInRecord, record_id)
     if not record:
         raise HTTPException(404, "入住记录不存在")
@@ -135,6 +135,7 @@ def do_check_out(db: Session, record_id: int) -> Bill:
         is_paid=False,  # 退房生成待支付账单，由前台收款（现金/在线）
     )
     record.check_out_time = now
+    record.checkout_type = "auto" if auto else "manual"
     if room:
         room.status = config.ROOM_AVAILABLE
         room.note = ""

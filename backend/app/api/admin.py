@@ -177,3 +177,41 @@ def admin_cancel_booking(booking_id: int, db: Session = Depends(get_db)):
 @router.get("/stats", response_model=StatsOut, summary="经营统计看板")
 def stats(db: Session = Depends(get_db)):
     return build_stats(db)
+
+
+# ---------- 超时自动退房 ----------
+@router.get("/auto-checkout", summary="自动退房状态与超期在住列表")
+def auto_checkout_status(db: Session = Depends(get_db)):
+    from app.services import auto_checkout_service
+
+    overdue = auto_checkout_service.list_overdue(db)
+    return {
+        "enabled": config.AUTO_CHECKOUT_ENABLED,
+        "checkout_hour": config.AUTO_CHECKOUT_CHECKOUT_HOUR,
+        "grace_hours": config.AUTO_CHECKOUT_GRACE_HOURS,
+        "interval_seconds": config.AUTO_CHECKOUT_INTERVAL_SECONDS,
+        "last_run": auto_checkout_service.last_run_info,
+        "overdue": [
+            {
+                "record_id": r.id,
+                "guest_name": r.guest_name,
+                "guest_phone": r.guest_phone,
+                "room_number": r.room.room_number if r.room else "",
+                "check_in_time": r.check_in_time.strftime("%Y-%m-%d %H:%M"),
+                "expected_check_out": r.expected_check_out,
+            }
+            for r in overdue
+        ],
+    }
+
+
+@router.post("/auto-checkout/run", summary="立即执行一次自动退房扫描")
+def run_auto_checkout(db: Session = Depends(get_db)):
+    from app.services import auto_checkout_service
+
+    processed = auto_checkout_service.run_auto_checkout_scan(db)
+    return {
+        "count": len(processed),
+        "records": processed,
+        "message": f"本次扫描自动退房 {len(processed)} 笔" if processed else "没有超期未退房的在住记录",
+    }

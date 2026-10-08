@@ -1,3 +1,4 @@
+import asyncio
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -7,18 +8,34 @@ from app.api import admin, auth, bookings, payments, reception, rooms
 from app.core.config import DATA_DIR
 from app.db.database import Base, SessionLocal, engine
 from app.db.init_data import init_database
+from app.services.auto_checkout_service import auto_checkout_loop
+
+
+def _ensure_columns():
+    """轻量迁移：为已有库补齐后加的列（SQLite ALTER TABLE ADD COLUMN）。"""
+    from sqlalchemy import text
+
+    with engine.connect() as conn:
+        cols = [row[1] for row in conn.execute(text("PRAGMA table_info(checkin_records)"))]
+        if "checkout_type" not in cols:
+            conn.execute(text("ALTER TABLE checkin_records ADD COLUMN checkout_type VARCHAR(20) DEFAULT 'manual'"))
+            conn.commit()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     Base.metadata.create_all(bind=engine)
+    _ensure_columns()
     db = SessionLocal()
     try:
         init_database(db)
     finally:
         db.close()
+    # 超时未退房自动退房后台任务
+    task = asyncio.create_task(auto_checkout_loop())
     yield
+    task.cancel()
 
 
 app = FastAPI(
