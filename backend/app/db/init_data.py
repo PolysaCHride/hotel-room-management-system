@@ -204,6 +204,41 @@ def init_database(db: Session):
                    guests=1, estimated_price=float(types[0].price) * 2,
                    status=config.BOOKING_COMPLETED, pay_status="paid"))
 
+    # 两笔超期未到店的预订（No-Show 演示）：启动扫描会自动取消并释放房间，已支付的自动退款
+    def free_available_room(type_id: int, ci: str, co: str):
+        for room in [r for r in rooms if r.type_id == type_id and r.status == config.ROOM_AVAILABLE]:
+            conflict = any(
+                b.room_id == room.id and b.status in (config.BOOKING_PENDING, config.BOOKING_CHECKED_IN)
+                and b.check_in_date < co and b.check_out_date > ci
+                for b in db.query(Booking).all()
+            )
+            if not conflict:
+                return room
+        return None
+
+    ns_std = free_available_room(types[1].id, (today - timedelta(days=2)).isoformat(), (today - timedelta(days=1)).isoformat())
+    if ns_std:
+        ns_std.status = config.ROOM_BOOKED  # 已过入住日：房间被锁定，等待 No-Show 扫描释放
+        db.add(Booking(customer_id=guest_users[1].id, room_type_id=types[1].id, room_id=ns_std.id,
+                       check_in_date=(today - timedelta(days=2)).isoformat(),
+                       check_out_date=(today - timedelta(days=1)).isoformat(),
+                       guests=1, estimated_price=float(types[1].price),
+                       remark="未到店演示（未支付）", status=config.BOOKING_PENDING))
+    ns_lux = free_available_room(types[2].id, (today - timedelta(days=4)).isoformat(), (today - timedelta(days=3)).isoformat())
+    if ns_lux:
+        ns_lux.status = config.ROOM_BOOKED
+        ns_booking = Booking(customer_id=guest_users[2].id, room_type_id=types[2].id, room_id=ns_lux.id,
+                             check_in_date=(today - timedelta(days=4)).isoformat(),
+                             check_out_date=(today - timedelta(days=3)).isoformat(),
+                             guests=2, estimated_price=float(types[2].price),
+                             remark="未到店演示（已支付）", status=config.BOOKING_PENDING, pay_status="paid")
+        db.add(ns_booking)
+        db.flush()
+        db.add(Payment(pay_no=f"PAY{today.strftime('%Y%m%d')}NS{ns_booking.id:03d}",
+                       biz_type="booking", biz_id=ns_booking.id, customer_id=guest_users[2].id,
+                       amount=float(types[2].price), channel="wechat", status="success",
+                       paid_at=datetime.combine(today - timedelta(days=5), datetime.min.time()).replace(hour=20)))
+
     # 一条待确认的续订申请（演示功能2：顾客申请 → 服务员确认）
     if checked_in_bookings:
         sample = checked_in_bookings[0]

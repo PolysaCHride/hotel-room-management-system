@@ -215,3 +215,39 @@ def run_auto_checkout(db: Session = Depends(get_db)):
         "records": processed,
         "message": f"本次扫描自动退房 {len(processed)} 笔" if processed else "没有超期未退房的在住记录",
     }
+
+
+# ---------- 未到店自动取消（No-Show） ----------
+@router.get("/auto-noshow", summary="未到店自动取消状态与超期预订列表")
+def auto_noshow_status(db: Session = Depends(get_db)):
+    from app.services import auto_checkout_service
+
+    due = auto_checkout_service.list_noshow_pending(db)
+    return {
+        "enabled": config.AUTO_NOSHOW_ENABLED,
+        "grace_hours": config.AUTO_NOSHOW_GRACE_HOURS,
+        "last_run": auto_checkout_service.last_noshow_info,
+        "pending": [
+            {
+                "booking_id": b.id,
+                "guest_name": b.customer.real_name if b.customer else "",
+                "room_number": b.room.room_number if b.room else "",
+                "check_in_date": b.check_in_date,
+                "check_out_date": b.check_out_date,
+                "paid": b.pay_status == "paid",
+            }
+            for b in due
+        ],
+    }
+
+
+@router.post("/auto-noshow/run", summary="立即执行一次未到店自动取消扫描")
+def run_auto_noshow(db: Session = Depends(get_db)):
+    from app.services import auto_checkout_service
+
+    processed = auto_checkout_service.run_auto_noshow_scan(db)
+    return {
+        "count": len(processed),
+        "records": processed,
+        "message": f"本次扫描自动取消未到店订单 {len(processed)} 笔" if processed else "没有超期未到店的待到店预订",
+    }

@@ -165,18 +165,19 @@ def sync_payment_status(db: Session, payment: Payment) -> Payment:
 
 
 def refund_payment(db: Session, payment: Payment) -> Payment:
-    """调用网关模拟退款（仅支付成功的支付单）。"""
+    """调用网关模拟退款（仅支付成功的支付单）；无网关交易号的支付单（离线/种子数据）直接本地标记退款。"""
     if payment.status != "success":
         raise HTTPException(409, f"仅支付成功的支付单可退款（当前 {payment.status}）")
-    params = {"txn_no": payment.gateway_txn_no}
-    params["sign"] = make_sign(params)
-    try:
-        resp = httpx.post(f"{GATEWAY}/api/refund", json=params, timeout=10)
-    except httpx.HTTPError:
-        raise HTTPException(502, "支付网关不可用，退款失败")
-    if resp.status_code != 200:
-        detail = resp.json().get("detail", "退款失败")
-        raise HTTPException(resp.status_code, f"支付网关返回错误：{detail}")
+    if payment.gateway_txn_no:
+        params = {"txn_no": payment.gateway_txn_no}
+        params["sign"] = make_sign(params)
+        try:
+            resp = httpx.post(f"{GATEWAY}/api/refund", json=params, timeout=10)
+        except httpx.HTTPError:
+            raise HTTPException(502, "支付网关不可用，退款失败")
+        if resp.status_code != 200:
+            detail = resp.json().get("detail", "退款失败")
+            raise HTTPException(resp.status_code, f"支付网关返回错误：{detail}")
     payment.status = "refunded"
     db.commit()
     db.refresh(payment)

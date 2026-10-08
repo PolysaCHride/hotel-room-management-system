@@ -57,7 +57,8 @@ def build_stats(db: Session) -> dict:
 
     status_rows = db.query(Booking.status, func.count(Booking.id)).group_by(Booking.status).all()
     booking_status_count = {s: c for s, c in status_rows}
-    for key in (config.BOOKING_PENDING, config.BOOKING_CHECKED_IN, config.BOOKING_COMPLETED, config.BOOKING_CANCELLED):
+    for key in (config.BOOKING_PENDING, config.BOOKING_CHECKED_IN, config.BOOKING_COMPLETED,
+                config.BOOKING_CANCELLED, config.BOOKING_NOSHOW):
         booking_status_count.setdefault(key, 0)
 
     occupancy_rate = round(occupied / total_rooms * 100, 1) if total_rooms else 0.0

@@ -30,6 +30,7 @@ BOOKING_PENDING = "pending"        # 待到店
 BOOKING_CHECKED_IN = "checked_in"  # 已入住
 BOOKING_CANCELLED = "cancelled"    # 已取消
 BOOKING_COMPLETED = "completed"    # 已完成（退房结算）
+BOOKING_NOSHOW = "noshow"          # 未到店（超时未办理入住，系统自动取消）
 
 # 支付网关（模拟）
 GATEWAY_BASE_URL = os.getenv("GATEWAY_BASE_URL", "http://127.0.0.1:18001")
@@ -45,3 +46,8 @@ AUTO_CHECKOUT_ENABLED = os.getenv("AUTO_CHECKOUT_ENABLED", "true").lower() == "t
 AUTO_CHECKOUT_CHECKOUT_HOUR = int(os.getenv("AUTO_CHECKOUT_CHECKOUT_HOUR", "12"))
 AUTO_CHECKOUT_GRACE_HOURS = float(os.getenv("AUTO_CHECKOUT_GRACE_HOURS", "2"))
 AUTO_CHECKOUT_INTERVAL_SECONDS = int(os.getenv("AUTO_CHECKOUT_INTERVAL_SECONDS", "60"))
+
+# 未到店自动取消（No-Show）：预订入住日整日结束（次日零点）再宽限 NOSHOW_GRACE_HOURS 小时
+# 仍为待到店的，由系统自动取消、释放房间；已在线支付的原路退款
+AUTO_NOSHOW_ENABLED = os.getenv("AUTO_NOSHOW_ENABLED", "true").lower() == "true"
+AUTO_NOSHOW_GRACE_HOURS = float(os.getenv("AUTO_NOSHOW_GRACE_HOURS", "2"))

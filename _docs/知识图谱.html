@@ -640,14 +640,14 @@ function st(id,x,y,w,cat,title,sub,what,tip){
   return {id,x,y,w,h:46,type:"state",cat,icon:"",title,sub,what,how:[],tip,pos:""};
 }
 const states = {
-  title:"状态流转", w:1360, h:860,
+  title:"状态流转", w:1360, h:880,
   intro:`<b>每个核心对象都有自己的「人生轨迹」</b>：圆角框是状态，箭头上的字是触发跳转的操作。颜色区分四种对象：🟢 房间 · 🔵 预订 · 🟣 支付 · 🩵 续订。`,
   legend:["room","bk","pm","rn"],
   groups:[
-    {x:20, y:60,  w:1320, h:200, label:"🛏️ 房间状态 Room.status"},
+    {x:20, y:60,  w:1320, h:200, lpos:186, label:"🛏️ 房间状态 Room.status"},
     {x:20, y:290, w:1320, h:170, label:"📝 预订状态 Booking.status"},
-    {x:20, y:490, w:1320, h:170, label:"💳 支付单状态 Payment.status"},
-    {x:20, y:690, w:1320, h:150, label:"📅 续订状态 Booking.renewal_status"},
+    {x:20, y:490, w:1320, h:200, label:"💳 支付单状态 Payment.status"},
+    {x:20, y:710, w:1320, h:150, label:"📅 续订状态 Booking.renewal_status"},
   ],
   nodes:[
     st("s_avail", 70, 170, 140, "room", "空闲 available", "", "可被预订分配，也可办理入住。", "「空闲」不等于「可以订」：还要看它在你的日期段有没有被别人订（冲突检测）。"),
@@ -834,7 +834,7 @@ function render(){
 
   (v.groups||[]).forEach(gf=>{
     el("rect", {class:"gframe", x:gf.x, y:gf.y, width:gf.w, height:gf.h, rx:16}, gl);
-    txt(gf.x+14, gf.y+20, gf.label, {class:"glabel"}, gl);
+    txt(gf.x+14, gf.y+(gf.lpos||20), gf.label, {class:"glabel"}, gl);
   });
 
   v.nodes.forEach(n=> nodesById.set(n.id, n));

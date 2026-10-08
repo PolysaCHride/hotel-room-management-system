@@ -57,6 +57,43 @@
         </el-button>
       </div>
     </el-card>
+
+    <!-- 未到店自动取消（No-Show） -->
+    <el-card shadow="never" class="page-card">
+      <template #header>
+        <div class="ac-head">
+          <b>未到店自动取消（No-Show）</b>
+          <el-tag :type="ns.enabled ? 'success' : 'info'" effect="plain">
+            {{ ns.enabled ? `已开启（入住日次日零点 + 宽限 ${ns.grace_hours} 小时）` : '已关闭' }}
+          </el-tag>
+        </div>
+      </template>
+      <div v-if="ns.pending.length" class="ac-overdue">
+        <el-alert type="warning" :closable="false"
+                  :title="`当前有 ${ns.pending.length} 笔超期未到店的预订，系统将自动取消并释放房间，已支付的原路退款`" />
+        <el-table :data="ns.pending" size="small" style="margin-top: 10px">
+          <el-table-column prop="room_number" label="房号" width="80" />
+          <el-table-column prop="guest_name" label="客人" width="110" />
+          <el-table-column prop="check_in_date" label="入住日" width="120" />
+          <el-table-column label="支付状态" width="110">
+            <template #default="{ row }">
+              <el-tag :type="row.paid ? 'success' : 'info'" effect="plain" size="small">
+                {{ row.paid ? '已支付（将退款）' : '未支付' }}
+              </el-tag>
+            </template>
+          </el-table-column>
+        </el-table>
+      </div>
+      <el-empty v-else description="当前没有超期未到店的预订" :image-size="60" />
+      <div class="ac-foot">
+        <span v-if="ns.last_run" class="muted">
+          最近扫描：{{ ns.last_run.time }}，自动取消 {{ ns.last_run.count }} 笔
+        </span>
+        <el-button type="primary" size="small" :loading="ns.running" @click="runNoshowScan">
+          立即扫描
+        </el-button>
+      </div>
+    </el-card>
   </div>
 </template>
 
@@ -71,6 +108,7 @@ const revenueChart = ref(null)
 const bookingChart = ref(null)
 const ac = reactive({ enabled: false, checkout_hour: 12, grace_hours: 2, interval_seconds: 60,
                       last_run: null, overdue: [], running: false })
+const ns = reactive({ enabled: false, grace_hours: 2, last_run: null, pending: [], running: false })
 
 async function loadAutoCheckout() {
   const s = await client.get('/admin/auto-checkout')
@@ -80,19 +118,42 @@ async function loadAutoCheckout() {
   })
 }
 
+async function loadNoshow() {
+  const s = await client.get('/admin/auto-noshow')
+  Object.assign(ns, {
+    enabled: s.enabled, grace_hours: s.grace_hours, last_run: s.last_run, pending: s.pending,
+  })
+}
+
 async function runScan() {
   ac.running = true
   try {
     const res = await client.post('/admin/auto-checkout/run')
     if (res.count > 0) {
       ElMessage.success(res.message)
-      await Promise.all([load(), loadAutoCheckout()])
+      await Promise.all([load(), loadAutoCheckout(), loadNoshow()])
     } else {
       ElMessage.info(res.message)
-      await loadAutoCheckout()
+      await Promise.all([loadAutoCheckout(), loadNoshow()])
     }
   } finally {
     ac.running = false
+  }
+}
+
+async function runNoshowScan() {
+  ns.running = true
+  try {
+    const res = await client.post('/admin/auto-noshow/run')
+    if (res.count > 0) {
+      ElMessage.success(res.message)
+      await Promise.all([load(), loadNoshow()])
+    } else {
+      ElMessage.info(res.message)
+      await loadNoshow()
+    }
+  } finally {
+    ns.running = false
   }
 }
 
@@ -138,7 +199,7 @@ async function load() {
   window.addEventListener('resize', () => { rc.resize(); bc.resize() })
 }
 
-onMounted(() => { load(); loadAutoCheckout() })
+onMounted(() => { load(); loadAutoCheckout(); loadNoshow() })
 </script>
 
 <style scoped>

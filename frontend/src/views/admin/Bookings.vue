@@ -40,8 +40,8 @@ import { useResponsive } from '../../composables/useResponsive'
 
 const { isMobile } = useResponsive()
 
-const STATUS_LABEL = { pending: '待到店', checked_in: '已入住', completed: '已完成', cancelled: '已取消' }
-const STATUS_TAG = { pending: 'warning', checked_in: 'success', completed: 'info', cancelled: 'danger' }
+const STATUS_LABEL = { pending: '待到店', checked_in: '已入住', completed: '已完成', cancelled: '已取消', noshow: '未到店' }
+const STATUS_TAG = { pending: 'warning', checked_in: 'success', completed: 'info', cancelled: 'danger', noshow: 'info' }
 
 const bookings = ref([])
 const filterStatus = ref(null)

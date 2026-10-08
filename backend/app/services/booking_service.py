@@ -79,6 +79,9 @@ def refresh_room_status_after_release(db: Session, room: Optional[Room]):
     """房间释放（退房/取消预订）后：若有已到日期的待到店预订 → booked，否则 available。"""
     if not room or room.status not in (config.ROOM_AVAILABLE, config.ROOM_BOOKED):
         return
+    # 会话配置了 autoflush=False：先落盘本事务内已做的状态变更（如订单刚被置为取消），
+    # 否则下方查询仍会看到旧状态，把刚取消的订单自己当成"待到店"而无法释放房间
+    db.flush()
     today = date.today().isoformat()
     due = db.scalar(
         select(Booking).where(
