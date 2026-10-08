@@ -137,10 +137,10 @@ def do_check_out(db: Session, record_id: int, auto: bool = False) -> Bill:
     record.check_out_time = now
     record.checkout_type = "auto" if auto else "manual"
     if room:
-        room.status = config.ROOM_AVAILABLE
+        # 退房后进入清洁状态（默认 60 分钟），由后台任务恢复可入住
+        room.status = config.ROOM_CLEANING
+        room.cleaning_started_at = now
         room.note = ""
-        # 若该房间有已到日期的待到店预订，标记为被预订
-        refresh_room_status_after_release(db, room)
     if record.booking_id:
         booking = db.get(Booking, record.booking_id)
         if booking:

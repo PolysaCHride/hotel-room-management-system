@@ -27,6 +27,7 @@
         <template #default="{ row }">
           <el-button v-if="row.status === 'available'" link type="warning" @click="setStatus(row, 'maintenance', '维修中')">设为维修</el-button>
           <el-button v-if="row.status === 'maintenance'" link type="success" @click="setStatus(row, 'available', '')">恢复可用</el-button>
+          <el-button v-if="row.status === 'cleaning'" link type="success" @click="setStatus(row, 'available', '')">完成清洁</el-button>
           <el-button link type="danger" @click="remove(row)">删除</el-button>
         </template>
       </el-table-column>
@@ -58,8 +59,8 @@ import { useResponsive } from '../../composables/useResponsive'
 
 const { isMobile } = useResponsive()
 
-const STATUS_LABEL = { available: '空闲', booked: '已被预订', occupied: '入住中', maintenance: '维修中' }
-const STATUS_TAG = { available: 'success', booked: 'warning', occupied: 'danger', maintenance: 'info' }
+const STATUS_LABEL = { available: '空闲', booked: '已被预订', occupied: '入住中', maintenance: '维修中', cleaning: '清洁中' }
+const STATUS_TAG = { available: 'success', booked: 'warning', occupied: 'danger', maintenance: 'info', cleaning: 'primary' }
 
 const rooms = ref([])
 const types = ref([])

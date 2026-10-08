@@ -148,6 +148,7 @@ const cards = ref([
   { label: '今日待到店', value: 0 },
   { label: '当前在住', value: 0 },
   { label: '空闲房间', value: 0 },
+  { label: '清洁中', value: 0 },
   { label: '维修中', value: 0 },
 ])
 const arrivals = ref([])
@@ -184,7 +185,8 @@ async function loadStats() {
   if (!s) return
   cards.value[1].value = s.occupied_rooms
   cards.value[2].value = s.free_rooms
-  cards.value[3].value = s.maintenance_rooms
+  cards.value[3].value = s.cleaning_rooms
+  cards.value[4].value = s.maintenance_rooms
 }
 
 /** 选择房间/房型/离店日期后，加载可用房间列表（排除被预订房间） */
@@ -260,8 +262,10 @@ function confirmRenewal(row) {
     `确认将 #${row.id}（${row.customer_name}，${row.room_number} 房）的离店日期从 ${row.check_out_date} 延长至 ${row.requested_check_out} 吗？`,
     '确认续订', { type: 'warning' }
   ).then(async () => {
-    await client.post(`/reception/renewals/${row.id}/confirm`)
-    ElMessage.success('续订已确认')
+    const res = await client.post(`/reception/renewals/${row.id}/confirm`)
+    ElMessage.success(res.moved_to
+      ? `续订已确认，原房间在延长日期段已被预订，已自动更换至 ${res.moved_to} 房`
+      : '续订已确认')
     load()
   }).catch(() => {})
 }

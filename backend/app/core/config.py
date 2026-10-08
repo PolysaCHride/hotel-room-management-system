@@ -24,6 +24,13 @@ ROOM_AVAILABLE = "available"      # 空闲
 ROOM_BOOKED = "booked"            # 已订（今日有到店预订）
 ROOM_OCCUPIED = "occupied"        # 入住中
 ROOM_MAINTENANCE = "maintenance"  # 维修中
+ROOM_CLEANING = "cleaning"        # 清洁中（退房后清洁，完成前不可分配）
+
+# 退房清洁：退房后房间进入清洁状态 CLEANING_MINUTES 分钟，由后台任务恢复可入住
+ROOM_CLEANING_MINUTES = int(os.getenv("ROOM_CLEANING_MINUTES", "60"))
+
+# 预订在线支付定金比例（0.2 = 房费的 20%），尾款退房时结算
+PAY_DEPOSIT_RATE = float(os.getenv("PAY_DEPOSIT_RATE", "0.2"))
 
 # 预订状态
 BOOKING_PENDING = "pending"        # 待到店

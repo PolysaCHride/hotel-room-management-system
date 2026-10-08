@@ -71,8 +71,8 @@ import { useResponsive } from '../../composables/useResponsive'
 
 const { isMobile } = useResponsive()
 
-const STATUS_LABEL = { available: '空闲', booked: '已被预订', occupied: '入住中', maintenance: '维修中' }
-const STATUS_TAG = { available: 'success', booked: 'warning', occupied: 'danger', maintenance: 'info' }
+const STATUS_LABEL = { available: '空闲', booked: '已被预订', occupied: '入住中', maintenance: '维修中', cleaning: '清洁中' }
+const STATUS_TAG = { available: 'success', booked: 'warning', occupied: 'danger', maintenance: 'info', cleaning: 'primary' }
 
 const types = ref([])
 const rooms = ref([])
@@ -109,7 +109,7 @@ async function submitBooking() {
       remark: dialog.remark,
     })
     ElMessage.success(
-      `预订成功！已为您锁定 ${res.room_number} 房，请于入住日到前台办理入住`
+      `预订成功！已为您锁定 ${res.room_number} 房。到店前可在线支付房费 20% 的定金锁定订单，尾款退房时结算`
     )
     dialog.visible = false
     load()

@@ -6,10 +6,11 @@
 from datetime import datetime, timedelta
 from typing import Optional
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
 from app.core import config
-from app.models.entities import Booking, CheckInRecord
+from app.models.entities import Booking, CheckInRecord, Room
 from app.services.stay_service import do_check_out, refresh_room_status_after_release
 
 # 最近一次扫描的结果（内存态，供管理端查看）
@@ -62,6 +63,29 @@ def run_auto_checkout_scan(db: Session) -> list:
         "records": processed,
     })
     return processed
+
+
+# ==================== 退房清洁恢复 ====================
+
+def run_cleaning_scan(db: Session) -> int:
+    """扫描清洁中的房间：清洁时长已满的恢复可入住（若该房有已到日期的待到店预订则标记为已订）。"""
+    from app.services.booking_service import refresh_room_status_after_release
+
+    now = datetime.now()
+    rooms = db.scalars(
+        select(Room).where(Room.status == config.ROOM_CLEANING)
+    ).all()
+    done = 0
+    for room in rooms:
+        start = room.cleaning_started_at
+        if start and now >= start + timedelta(minutes=config.ROOM_CLEANING_MINUTES):
+            room.status = config.ROOM_AVAILABLE
+            room.cleaning_started_at = None
+            refresh_room_status_after_release(db, room)
+            done += 1
+    if done:
+        db.commit()
+    return done
 
 
 # ==================== 未到店自动取消（No-Show） ====================
@@ -159,6 +183,9 @@ async def auto_checkout_loop():
                         print(f"[未到店取消] 订单 #{item['booking_id']} {item['guest_name']} "
                               f"{item['room_number']} 房（入住日 {item['check_in_date']}）"
                               f"超期未到店，已自动取消{refund_note}")
+                cleaned = await run_in_threadpool(run_cleaning_scan, db)
+                if cleaned:
+                    print(f"[清洁完成] {cleaned} 间客房清洁结束，恢复可入住")
             finally:
                 db.close()
         except Exception as e:  # 定时任务不允许因异常退出

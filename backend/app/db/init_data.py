@@ -131,6 +131,12 @@ def init_database(db: Session):
     ))
     db.flush()
 
+    # 一间刚退房、清洁中的房（已清洁约 30 分钟，稍后自动恢复可入住）
+    cleaning_room = next(r for r in rooms if r.status == config.ROOM_AVAILABLE and r.type_id == types[0].id)
+    cleaning_room.status = config.ROOM_CLEANING
+    cleaning_room.cleaning_started_at = datetime.now() - timedelta(minutes=30)
+    db.flush()
+
     # 一间维修中的房
     rooms[-1].status = config.ROOM_MAINTENANCE
     rooms[-1].note = "空调检修中"
@@ -172,7 +178,8 @@ def init_database(db: Session):
     if lux_booking:
         db.add(Payment(pay_no=f"PAY{today.strftime('%Y%m%d')}BK{lux_booking.id:03d}",
                        biz_type="booking", biz_id=lux_booking.id, customer_id=guest_users[3].id,
-                       amount=float(lux.price) * 2, channel="alipay", status="success",
+                       amount=round(float(lux.price) * 2 * config.PAY_DEPOSIT_RATE, 2),
+                       channel="alipay", status="success",
                        paid_at=datetime.combine(today, datetime.min.time()).replace(hour=9)))
 
     # 已入住的预订（关联在住记录；散客无账号，跳过）
@@ -202,7 +209,7 @@ def init_database(db: Session):
                    check_in_date=(today - timedelta(days=10)).isoformat(),
                    check_out_date=(today - timedelta(days=8)).isoformat(),
                    guests=1, estimated_price=float(types[0].price) * 2,
-                   status=config.BOOKING_COMPLETED, pay_status="paid"))
+                   status=config.BOOKING_COMPLETED, pay_status="deposit_paid"))
 
     # 两笔超期未到店的预订（No-Show 演示）：启动扫描会自动取消并释放房间，已支付的自动退款
     def free_available_room(type_id: int, ci: str, co: str):

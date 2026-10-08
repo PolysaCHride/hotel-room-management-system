@@ -45,7 +45,7 @@ def find_assignable_room(db: Session, room_type_id: int, ci: date, co: date) -> 
     """找该房型下可分配给 [ci, co) 的房间：状态非维修/在住，且无重叠预订。"""
     rooms = db.scalars(
         select(Room)
-        .where(Room.type_id == room_type_id, Room.status.notin_([config.ROOM_MAINTENANCE, config.ROOM_OCCUPIED]))
+        .where(Room.type_id == room_type_id, Room.status.in_([config.ROOM_AVAILABLE, config.ROOM_BOOKED]))
         .order_by(Room.room_number)
     ).all()
     for room in rooms:
@@ -58,7 +58,7 @@ def find_available_rooms(db: Session, room_type_id: int, ci: date, co: date) -> 
     """该房型下在 [ci, co) 可用的房间列表（前台选房用）。"""
     rooms = db.scalars(
         select(Room)
-        .where(Room.type_id == room_type_id, Room.status.notin_([config.ROOM_MAINTENANCE, config.ROOM_OCCUPIED]))
+        .where(Room.type_id == room_type_id, Room.status.in_([config.ROOM_AVAILABLE, config.ROOM_BOOKED]))
         .order_by(Room.room_number)
     ).all()
     return [r for r in rooms if not room_has_conflict(db, r.id, ci, co)]

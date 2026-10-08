@@ -52,6 +52,7 @@ def room_summary(db: Session = Depends(get_db)):
         "occupied_rooms": by_status.get("occupied", 0),
         "booked_rooms": by_status.get("booked", 0),
         "maintenance_rooms": by_status.get("maintenance", 0),
+        "cleaning_rooms": by_status.get("cleaning", 0),
     }
 
 
@@ -82,8 +83,7 @@ def renewals(db: Session = Depends(get_db)):
 
 @router.post("/renewals/{booking_id}/confirm", response_model=dict, summary="确认续订申请")
 def confirm_renewal_api(booking_id: int, db: Session = Depends(get_db)):
-    confirm_renewal(db, booking_id)
-    return {"ok": True}
+    return confirm_renewal(db, booking_id)
 
 
 @router.post("/renewals/{booking_id}/reject", response_model=dict, summary="拒绝续订申请")
@@ -94,8 +94,7 @@ def reject_renewal_api(booking_id: int, db: Session = Depends(get_db)):
 
 @router.post("/renewals/{booking_id}/direct", response_model=dict, summary="服务员直接续订（无需顾客申请）")
 def direct_renewal_api(booking_id: int, data: RenewalRequest, db: Session = Depends(get_db)):
-    direct_renewal(db, booking_id, data.new_check_out_date)
-    return {"ok": True}
+    return direct_renewal(db, booking_id, data.new_check_out_date)
 
 
 @router.get("/arrivals", response_model=list[dict], summary="今日待到店 / 全部待到店预订")

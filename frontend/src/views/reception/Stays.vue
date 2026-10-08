@@ -120,8 +120,12 @@ async function submitRenew() {
   if (!renew.booking_id) return ElMessage.warning('该入住记录没有关联预订，无法续订')
   renew.loading = true
   try {
-    await client.post(`/reception/renewals/${renew.booking_id}/direct`, { new_check_out_date: renew.new_date })
-    ElMessage.success(`续订成功，${renew.room_number} 房离店日期已延长至 ${renew.new_date}`)
+    const res = await client.post(`/reception/renewals/${renew.booking_id}/direct`, { new_check_out_date: renew.new_date })
+    ElMessage.success(
+      res.moved_to
+        ? `续订成功，原房间在延长日期段已被预订，已自动为客人更换至 ${res.moved_to} 房，离店日期延长至 ${renew.new_date}`
+        : `续订成功，${renew.room_number} 房离店日期已延长至 ${renew.new_date}`
+    )
     renew.visible = false
     load()
   } finally {

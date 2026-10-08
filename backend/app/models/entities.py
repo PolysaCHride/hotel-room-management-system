@@ -45,6 +45,7 @@ class Room(Base):
     floor: Mapped[int] = mapped_column(Integer, default=1)
     status: Mapped[str] = mapped_column(String(20), default=config.ROOM_AVAILABLE)
     note: Mapped[str] = mapped_column(String(200), default="")
+    cleaning_started_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)  # 进入清洁状态的时间
 
     room_type: Mapped["RoomType"] = relationship(back_populates="rooms")
     checkin_records: Mapped[list["CheckInRecord"]] = relationship(back_populates="room")

@@ -64,7 +64,8 @@ def create_payment(db: Session, *, operator_id: int, is_staff: bool, biz_type: s
             raise HTTPException(409, "仅待到店的预订可以在线支付")
         if booking.pay_status == "paid":
             raise HTTPException(409, "该预订已支付，请勿重复支付")
-        amount = float(booking.estimated_price)
+        # 预订在线支付收取定金（默认房费的 20%，比例可配），尾款退房时结算
+        amount = round(float(booking.estimated_price) * config.PAY_DEPOSIT_RATE, 2)
         customer_id = booking.customer_id
         # 已有待支付的支付单：复用（收银台可重复打开），避免重复下单
         pending = db.scalar(
@@ -106,7 +107,7 @@ def _apply_payment_success(db: Session, payment: Payment):
     if payment.biz_type == "booking":
         booking = db.get(Booking, payment.biz_id)
         if booking:
-            booking.pay_status = "paid"
+            booking.pay_status = "deposit_paid"
     elif payment.biz_type == "bill":
         bill = db.get(Bill, payment.biz_id)
         if bill:

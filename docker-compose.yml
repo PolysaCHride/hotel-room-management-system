@@ -9,6 +9,15 @@ services:
       - GATEWAY_BASE_URL=http://gateway:8000
       - PAY_SECRET=${PAY_SECRET:-demo-pay-secret-change-me}
       - NOTIFY_BASE_URL=http://backend:8000
+      # 业务规则参数（可在 .env 中调整）
+      - AUTO_CHECKOUT_ENABLED=${AUTO_CHECKOUT_ENABLED:-true}
+      - AUTO_CHECKOUT_CHECKOUT_HOUR=${AUTO_CHECKOUT_CHECKOUT_HOUR:-12}
+      - AUTO_CHECKOUT_GRACE_HOURS=${AUTO_CHECKOUT_GRACE_HOURS:-2}
+      - AUTO_CHECKOUT_INTERVAL_SECONDS=${AUTO_CHECKOUT_INTERVAL_SECONDS:-60}
+      - AUTO_NOSHOW_ENABLED=${AUTO_NOSHOW_ENABLED:-true}
+      - AUTO_NOSHOW_GRACE_HOURS=${AUTO_NOSHOW_GRACE_HOURS:-2}
+      - ROOM_CLEANING_MINUTES=${ROOM_CLEANING_MINUTES:-60}
+      - PAY_DEPOSIT_RATE=${PAY_DEPOSIT_RATE:-0.2}
     volumes:
       # SQLite 数据持久化到宿主机 ./data/，容器重建数据不丢
       - ./data:/data

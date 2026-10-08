@@ -20,6 +20,10 @@ def _ensure_columns():
         if "checkout_type" not in cols:
             conn.execute(text("ALTER TABLE checkin_records ADD COLUMN checkout_type VARCHAR(20) DEFAULT 'manual'"))
             conn.commit()
+        room_cols = [row[1] for row in conn.execute(text("PRAGMA table_info(rooms)"))]
+        if "cleaning_started_at" not in room_cols:
+            conn.execute(text("ALTER TABLE rooms ADD COLUMN cleaning_started_at DATETIME"))
+            conn.commit()
 
 
 @asynccontextmanager

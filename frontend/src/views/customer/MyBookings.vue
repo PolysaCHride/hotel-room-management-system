@@ -26,9 +26,10 @@
       </el-table-column>
       <el-table-column v-if="!isMobile" prop="guests" label="人数" width="70" />
       <el-table-column v-if="!isMobile" prop="estimated_price" label="预计费用(元)" width="120" />
-      <el-table-column label="支付状态" width="100">
+      <el-table-column label="支付状态" width="110">
         <template #default="{ row }">
-          <el-tag v-if="row.pay_status === 'paid'" type="success" effect="plain">已支付</el-tag>
+          <el-tag v-if="row.pay_status === 'deposit_paid'" type="success" effect="plain">已付定金</el-tag>
+          <el-tag v-else-if="row.pay_status === 'paid'" type="success" effect="plain">已支付</el-tag>
           <el-tag v-else type="info" effect="plain">待支付</el-tag>
         </template>
       </el-table-column>
@@ -93,12 +94,12 @@ function canRenew(row) {
 }
 
 function canPay(row) {
-  return row.status === 'pending' && row.pay_status !== 'paid'
+  return row.status === 'pending' && row.pay_status === 'unpaid'
 }
 
 async function payOnline(row) {
   const res = await client.post('/payments/create', { biz_type: 'booking', biz_id: row.id })
-  ElMessage.success('正在跳转模拟支付收银台…')
+  ElMessage.success(`正在跳转模拟支付收银台（预订定金 ¥${Number(res.amount).toFixed(2)}）…`)
   setTimeout(() => { window.location.href = res.cashier_url }, 600)
 }
 
@@ -129,16 +130,18 @@ async function submitRenew() {
 }
 
 function cancel(row) {
-  const refundNote = row.pay_status === 'paid'
-    ? '该预订已在线支付，取消后将自动原路退款。'
-    : ''
+  const refundNote = row.pay_status === 'deposit_paid'
+    ? '该预订已支付定金，取消后定金将自动原路退款。'
+    : row.pay_status === 'paid'
+      ? '该预订已在线支付，取消后将自动原路退款。'
+      : ''
   ElMessageBox.confirm(
     `确定取消预订单 #${row.id}（${row.room_type_name}）吗？${refundNote}`,
     '取消预订', { type: 'warning' }
   )
     .then(async () => {
       await client.post(`/bookings/${row.id}/cancel`)
-      ElMessage.success(row.pay_status === 'paid' ? '已取消，退款将原路退回' : '已取消')
+      ElMessage.success(row.pay_status !== 'unpaid' ? '已取消，款项将原路退回' : '已取消')
       load()
     })
     .catch(() => {})
